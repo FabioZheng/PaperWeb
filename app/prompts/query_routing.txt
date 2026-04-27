@@ -1,0 +1,2 @@
+ROUTER_PLAN
+Given a user query, output JSON with intent, entities, filters, store_weights, retrieval_budget, and response_mode.
