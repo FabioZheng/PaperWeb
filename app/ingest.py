@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 
+from app.config import load_config
 from app.consolidation.topic_consolidator import TopicConsolidator
 from app.crawlers.mock import ACLCVFStyleCrawler, OpenReviewStyleCrawler
+from app.crawlers.openreview_real import OpenReviewRealCrawler
 from app.extraction.extractor import ExtractionService
 from app.models import Entity
 from app.normalization.entity_normalizer import EntityNormalizer
@@ -19,14 +21,20 @@ from app.validation.write_gate import WriteGate
 
 
 CRAWLERS = {
-    "openreview": OpenReviewStyleCrawler,
+    "openreview": OpenReviewRealCrawler,
     "aclcvf": ACLCVFStyleCrawler,
     "mock": OpenReviewStyleCrawler,
 }
 
 
-def run_ingest(source: str, limit: int) -> None:
-    crawler = CRAWLERS[source]()
+def _build_crawler(source: str, research_field: str, paper_type: str, search_query: str | None):
+    if source == "openreview":
+        return OpenReviewRealCrawler(research_field=research_field, paper_type=paper_type, query=search_query or None)
+    return CRAWLERS[source]()
+
+
+def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type: str = "recent", search_query: str | None = None) -> None:
+    crawler = _build_crawler(source, research_field, paper_type, search_query)
     parser = PDFParser()
     extractor = ExtractionService()
     gate = WriteGate(EntityNormalizer())
@@ -47,7 +55,7 @@ def run_ingest(source: str, limit: int) -> None:
         entities = [
             Entity(entity_id=f"{paper.paper_id}_e0", canonical_name="KILT", aliases=["KILT benchmark"], entity_type="Dataset")
         ]
-        validated, norm_entities = gate.validate_and_prepare(extracted, chunks, entities)
+        validated, _ = gate.validate_and_prepare(extracted, chunks, entities)
         sdb.upsert_extracted(paper.paper_id, validated)
 
         for c in chunks:
@@ -67,7 +75,7 @@ def run_ingest(source: str, limit: int) -> None:
         obsidian.write_paper_note(paper, paper.abstract)
 
     for idx, (cid_a, text_a) in enumerate(all_claims):
-        for cid_b, text_b in all_claims[idx + 1:]:
+        for cid_b, text_b in all_claims[idx + 1 :]:
             if ("improv" in text_a and "reduce" in text_b) or ("reduce" in text_a and "improv" in text_b):
                 graph.add_edge(f"contr_{cid_a}_{cid_b}", cid_a, cid_b, "CONTRADICTS")
 
@@ -82,11 +90,15 @@ def run_ingest(source: str, limit: int) -> None:
 
 
 def main() -> None:
+    cfg = load_config()
     ap = argparse.ArgumentParser()
-    ap.add_argument("--source", default="mock", choices=list(CRAWLERS.keys()))
-    ap.add_argument("--limit", default=5, type=int)
+    ap.add_argument("--source", default=cfg.ingestion.source, choices=list(CRAWLERS.keys()))
+    ap.add_argument("--limit", default=cfg.ingestion.limit, type=int)
+    ap.add_argument("--field", default=cfg.ingestion.research_field, help="Research field (nlp, cv, ml, ai, robotics, all)")
+    ap.add_argument("--paper-type", default=cfg.ingestion.paper_type, help="Paper type/keyword (recent, survey, benchmark, ...)")
+    ap.add_argument("--search-query", default=cfg.ingestion.search_query or "", help="Optional raw arXiv search_query override")
     args = ap.parse_args()
-    run_ingest(args.source, args.limit)
+    run_ingest(args.source, args.limit, args.field, args.paper_type, args.search_query or None)
 
 
 if __name__ == "__main__":
