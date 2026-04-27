@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+paperweb.egg-info/
+.pytest_cache/
+
+# Binary/artifact exclusions
+*.db
+*.sqlite
+*.sqlite3
+*.bin
+*.pt
+*.png
+*.jpg
+*.jpeg
+*.zip

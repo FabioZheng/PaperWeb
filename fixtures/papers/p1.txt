@@ -1,0 +1,11 @@
+# Abstract
+Adaptive compression improves retrieval on KILT by 4.0 F1 over baseline sparse indexing.
+
+# Method
+We evaluate AdaptiveZip against SparseBase on KILT dev.
+
+# Results Table
+Dataset: KILT
+Split: dev
+AdaptiveZip | F1 | 78.2
+SparseBase | F1 | 74.2

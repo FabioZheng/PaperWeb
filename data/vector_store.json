@@ -1,0 +1,350 @@
+[
+  {
+    "item_id": "p1_c0",
+    "text": "Adaptive compression improves retrieval on KILT by 4.0 F1 over baseline sparse indexing.",
+    "tok": [
+      "4.0",
+      "adaptive",
+      "baseline",
+      "by",
+      "compression",
+      "f1",
+      "improves",
+      "indexing",
+      "kilt",
+      "on",
+      "over",
+      "retrieval",
+      "sparse"
+    ],
+    "metadata": {
+      "paper_id": "p1",
+      "section": "Abstract"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p1_c1",
+    "text": "We evaluate AdaptiveZip against SparseBase on KILT dev.",
+    "tok": [
+      "adaptivezip",
+      "against",
+      "dev",
+      "evaluate",
+      "kilt",
+      "on",
+      "sparsebase",
+      "we"
+    ],
+    "metadata": {
+      "paper_id": "p1",
+      "section": "Method"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p1_c2",
+    "text": "Dataset: KILT\nSplit: dev\nAdaptiveZip | F1 | 78.2\nSparseBase | F1 | 74.2",
+    "tok": [
+      "74.2",
+      "78.2",
+      "adaptivezip",
+      "dataset",
+      "dev",
+      "f1",
+      "kilt",
+      "sparsebase",
+      "split",
+      "|"
+    ],
+    "metadata": {
+      "paper_id": "p1",
+      "section": "Results Table"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p1_p1_c0_claim",
+    "text": "Adaptive compression improves retrieval on KILT by 4",
+    "tok": [
+      "4",
+      "adaptive",
+      "by",
+      "compression",
+      "improves",
+      "kilt",
+      "on",
+      "retrieval"
+    ],
+    "metadata": {
+      "paper_id": "p1",
+      "type": "claim"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p2_c0",
+    "text": "Token-pruned indexing reduces cost and slightly improves KILT performance.",
+    "tok": [
+      "and",
+      "cost",
+      "improves",
+      "indexing",
+      "kilt",
+      "performance",
+      "reduces",
+      "slightly",
+      "token-pruned"
+    ],
+    "metadata": {
+      "paper_id": "p2",
+      "section": "Abstract"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p2_c1",
+    "text": "PruneMem is evaluated against SparseBase on KILT dev.",
+    "tok": [
+      "against",
+      "dev",
+      "evaluated",
+      "is",
+      "kilt",
+      "on",
+      "prunemem",
+      "sparsebase"
+    ],
+    "metadata": {
+      "paper_id": "p2",
+      "section": "Method"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p2_c2",
+    "text": "Dataset: KILT\nSplit: dev\nPruneMem | F1 | 76.3\nSparseBase | F1 | 74.8",
+    "tok": [
+      "74.8",
+      "76.3",
+      "dataset",
+      "dev",
+      "f1",
+      "kilt",
+      "prunemem",
+      "sparsebase",
+      "split",
+      "|"
+    ],
+    "metadata": {
+      "paper_id": "p2",
+      "section": "Results Table"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "p2_p2_c0_claim",
+    "text": "Token-pruned indexing reduces cost and slightly improves KILT performance",
+    "tok": [
+      "and",
+      "cost",
+      "improves",
+      "indexing",
+      "kilt",
+      "performance",
+      "reduces",
+      "slightly",
+      "token-pruned"
+    ],
+    "metadata": {
+      "paper_id": "p2",
+      "type": "claim"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "topic_t0",
+    "text": "2 papers discuss adaptive compression. Focus: Adaptive Compression for Retrieval-Heavy Knowledge Tasks; Token-Pruned Memory Indexing for KILT Benchmarks",
+    "tok": [
+      "2",
+      "adaptive",
+      "benchmarks",
+      "compression",
+      "discuss",
+      "focus",
+      "for",
+      "indexing",
+      "kilt",
+      "knowledge",
+      "memory",
+      "papers",
+      "retrieval-heavy",
+      "tasks",
+      "token-pruned"
+    ],
+    "metadata": {
+      "topic": "adaptive compression"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "topic_t1",
+    "text": "2 papers discuss kilt. Focus: Adaptive Compression for Retrieval-Heavy Knowledge Tasks; Token-Pruned Memory Indexing for KILT Benchmarks",
+    "tok": [
+      "2",
+      "adaptive",
+      "benchmarks",
+      "compression",
+      "discuss",
+      "focus",
+      "for",
+      "indexing",
+      "kilt",
+      "knowledge",
+      "memory",
+      "papers",
+      "retrieval-heavy",
+      "tasks",
+      "token-pruned"
+    ],
+    "metadata": {
+      "topic": "kilt"
+    },
+    "curated": false
+  },
+  {
+    "item_id": "obsidian_paper_p2",
+    "text": "# Token-Pruned Memory Indexing for KILT Benchmarks\n\n- Venue: ACL (2024)\n- Authors: C. Lee\n- Tags: #adaptive_compression #kilt\n\n## Summary\nToken pruning improves latency while retaining quality.\n",
+    "tok": [
+      "#",
+      "##",
+      "#adaptive_compression",
+      "#kilt",
+      "-",
+      "2024",
+      "acl",
+      "authors",
+      "benchmarks",
+      "c",
+      "for",
+      "improves",
+      "indexing",
+      "kilt",
+      "latency",
+      "lee",
+      "memory",
+      "pruning",
+      "quality",
+      "retaining",
+      "summary",
+      "tags",
+      "token",
+      "token-pruned",
+      "venue",
+      "while"
+    ],
+    "metadata": {
+      "path": "fixtures/obsidian_vault/paper_p2.md"
+    },
+    "curated": true
+  },
+  {
+    "item_id": "obsidian_topic_t0",
+    "text": "# Topic: adaptive compression\n\n2 papers discuss adaptive compression. Focus: Adaptive Compression for Retrieval-Heavy Knowledge Tasks; Token-Pruned Memory Indexing for KILT Benchmarks\n\n## Papers\n- [[paper_p1]]\n- [[paper_p2]]\n",
+    "tok": [
+      "#",
+      "##",
+      "-",
+      "2",
+      "adaptive",
+      "benchmarks",
+      "compression",
+      "discuss",
+      "focus",
+      "for",
+      "indexing",
+      "kilt",
+      "knowledge",
+      "memory",
+      "paper_p1",
+      "paper_p2",
+      "papers",
+      "retrieval-heavy",
+      "tasks",
+      "token-pruned",
+      "topic"
+    ],
+    "metadata": {
+      "path": "fixtures/obsidian_vault/topic_t0.md"
+    },
+    "curated": true
+  },
+  {
+    "item_id": "obsidian_paper_p1",
+    "text": "# Adaptive Compression for Retrieval-Heavy Knowledge Tasks\n\n- Venue: OpenReview (2025)\n- Authors: A. Smith, B. Jones\n- Tags: #adaptive_compression #kilt\n\n## Summary\nWe propose adaptive compression for memory retrieval over KILT.\n",
+    "tok": [
+      "#",
+      "##",
+      "#adaptive_compression",
+      "#kilt",
+      "-",
+      "2025",
+      "a",
+      "adaptive",
+      "authors",
+      "b",
+      "compression",
+      "for",
+      "jones",
+      "kilt",
+      "knowledge",
+      "memory",
+      "openreview",
+      "over",
+      "propose",
+      "retrieval",
+      "retrieval-heavy",
+      "smith",
+      "summary",
+      "tags",
+      "tasks",
+      "venue",
+      "we"
+    ],
+    "metadata": {
+      "path": "fixtures/obsidian_vault/paper_p1.md"
+    },
+    "curated": true
+  },
+  {
+    "item_id": "obsidian_topic_t1",
+    "text": "# Topic: kilt\n\n2 papers discuss kilt. Focus: Adaptive Compression for Retrieval-Heavy Knowledge Tasks; Token-Pruned Memory Indexing for KILT Benchmarks\n\n## Papers\n- [[paper_p1]]\n- [[paper_p2]]\n",
+    "tok": [
+      "#",
+      "##",
+      "-",
+      "2",
+      "adaptive",
+      "benchmarks",
+      "compression",
+      "discuss",
+      "focus",
+      "for",
+      "indexing",
+      "kilt",
+      "knowledge",
+      "memory",
+      "paper_p1",
+      "paper_p2",
+      "papers",
+      "retrieval-heavy",
+      "tasks",
+      "token-pruned",
+      "topic"
+    ],
+    "metadata": {
+      "path": "fixtures/obsidian_vault/topic_t1.md"
+    },
+    "curated": true
+  }
+]

@@ -1,0 +1,66 @@
+[
+  {
+    "result_id": "p1_p1_c2_r0",
+    "paper_id": "p1",
+    "table_id": "p1_p1_c2_table",
+    "source_reference": "page:3",
+    "dataset": "KILT",
+    "split": "dev",
+    "method": "AdaptiveZip",
+    "baseline": "SparseBase",
+    "metric": "F1",
+    "value": 78.2,
+    "unit": "points",
+    "source_chunk_ids": [
+      "p1_c2"
+    ]
+  },
+  {
+    "result_id": "p1_p1_c2_r1",
+    "paper_id": "p1",
+    "table_id": "p1_p1_c2_table",
+    "source_reference": "page:3",
+    "dataset": "KILT",
+    "split": "dev",
+    "method": "SparseBase",
+    "baseline": null,
+    "metric": "F1",
+    "value": 74.2,
+    "unit": "points",
+    "source_chunk_ids": [
+      "p1_c2"
+    ]
+  },
+  {
+    "result_id": "p2_p2_c2_r0",
+    "paper_id": "p2",
+    "table_id": "p2_p2_c2_table",
+    "source_reference": "page:3",
+    "dataset": "KILT",
+    "split": "dev",
+    "method": "PruneMem",
+    "baseline": "SparseBase",
+    "metric": "F1",
+    "value": 76.3,
+    "unit": "points",
+    "source_chunk_ids": [
+      "p2_c2"
+    ]
+  },
+  {
+    "result_id": "p2_p2_c2_r1",
+    "paper_id": "p2",
+    "table_id": "p2_p2_c2_table",
+    "source_reference": "page:3",
+    "dataset": "KILT",
+    "split": "dev",
+    "method": "SparseBase",
+    "baseline": null,
+    "metric": "F1",
+    "value": 74.8,
+    "unit": "points",
+    "source_chunk_ids": [
+      "p2_c2"
+    ]
+  }
+]

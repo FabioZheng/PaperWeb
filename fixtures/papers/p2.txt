@@ -1,0 +1,11 @@
+# Abstract
+Token-pruned indexing reduces cost and slightly improves KILT performance.
+
+# Method
+PruneMem is evaluated against SparseBase on KILT dev.
+
+# Results Table
+Dataset: KILT
+Split: dev
+PruneMem | F1 | 76.3
+SparseBase | F1 | 74.8

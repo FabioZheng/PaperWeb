@@ -1,0 +1,26 @@
+[
+  {
+    "paper_id": "p1",
+    "title": "Adaptive Compression for Retrieval-Heavy Knowledge Tasks",
+    "authors": ["A. Smith", "B. Jones"],
+    "venue": "OpenReview",
+    "year": 2025,
+    "accepted_date": "2025-09-12",
+    "abstract": "We propose adaptive compression for memory retrieval over KILT.",
+    "source_url": "https://example.org/p1",
+    "pdf_path": "fixtures/papers/p1.txt",
+    "topics": ["adaptive compression", "kilt"]
+  },
+  {
+    "paper_id": "p2",
+    "title": "Token-Pruned Memory Indexing for KILT Benchmarks",
+    "authors": ["C. Lee"],
+    "venue": "ACL",
+    "year": 2024,
+    "accepted_date": "2024-08-10",
+    "abstract": "Token pruning improves latency while retaining quality.",
+    "source_url": "https://example.org/p2",
+    "pdf_path": "fixtures/papers/p2.txt",
+    "topics": ["adaptive compression", "kilt"]
+  }
+]

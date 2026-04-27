@@ -1,0 +1,2 @@
+EXTRACTION
+Extract claims only. Separate explicit statements from inferred interpretations.
