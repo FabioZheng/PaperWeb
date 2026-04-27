@@ -5,7 +5,7 @@ This repository implements a production-oriented MVP for discovering accepted pa
 ## Architecture
 
 ### Ingestion pipeline
-1. `crawlers/` discover recent papers (mock OpenReview/ACL-CVF adapters).
+1. `crawlers/` discover recent papers (real arXiv-backed crawler + mock adapters).
 2. `parsing/` parses PDF/text into typed chunks with provenance.
 3. `extraction/` distills facts, claims, interpretations, and numeric results.
 4. `validation/` write gate validates evidence references, deduplicates claims, normalizes entities.
@@ -31,10 +31,10 @@ Three explicit roles are implemented:
 
 Supported provider adapters:
 - `mock` (default, deterministic, no API key)
-- `openai` (integration point stub)
+- `openai` (fully implemented)
 - `anthropic` (integration point stub)
 
-> For live providers, wire API clients in `app/extraction/llm_provider.py` and use `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.
+> For OpenAI set `OPENAI_API_KEY` and provider/model environment variables.
 
 ## Setup
 ```bash
@@ -45,7 +45,12 @@ pip install -e .[dev]
 
 ## Run locally
 
-### Ingest papers
+### Ingest papers (real API-backed)
+```bash
+python -m app.ingest --source openreview --limit 5
+```
+
+### Ingest papers (fixtures)
 ```bash
 python -m app.ingest --source mock --limit 5
 ```
@@ -65,12 +70,23 @@ python -m app.reindex_obsidian
 python -m app.query "Compare recent adaptive compression papers on KILT"
 ```
 
+## LLM config example
+```bash
+export ROUTER_PROVIDER=openai
+export ROUTER_MODEL=gpt-4.1-mini
+export EXTRACTOR_PROVIDER=openai
+export EXTRACTOR_MODEL=gpt-4.1-mini
+export GENERATOR_PROVIDER=openai
+export GENERATOR_MODEL=gpt-4.1-mini
+export OPENAI_API_KEY=your_key_here
+```
+
 ## Fixtures / mock mode
 - Input papers: `fixtures/papers/mock_papers.json`
 - Mock paper texts: `fixtures/papers/p1.txt`, `fixtures/papers/p2.txt`
 - Obsidian vault: `fixtures/obsidian_vault/`
 
-Everything runs without external credentials in mock mode.
+Mock mode remains available for deterministic tests.
 
 ## Tests
 ```bash
@@ -78,6 +94,6 @@ pytest
 ```
 
 ## Limitations / TODOs
-- PDF parser is a text-fixture MVP with a clear interface for real PDF extractors.
-- OpenAI/Anthropic adapters are intentionally stubbed until credentials and SDKs are enabled.
+- PDF parsing uses `pdfplumber`; section detection is heuristic.
+- Anthropic adapter remains a stub until credentials and SDKs are enabled.
 - Graph query set is intentionally minimal but includes contradiction/refinement relation support.

@@ -9,6 +9,9 @@ description = "Production-oriented MVP research-memory pipeline"
 requires-python = ">=3.10"
 dependencies = [
   "pydantic>=2.7",
+  "httpx>=0.27",
+  "openai>=1.40.0",
+  "pdfplumber>=0.11.0",
 ]
 
 [project.optional-dependencies]

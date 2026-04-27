@@ -6,6 +6,7 @@ import argparse
 
 from app.consolidation.topic_consolidator import TopicConsolidator
 from app.crawlers.mock import ACLCVFStyleCrawler, OpenReviewStyleCrawler
+from app.crawlers.openreview_real import OpenReviewRealCrawler
 from app.extraction.extractor import ExtractionService
 from app.models import Entity
 from app.normalization.entity_normalizer import EntityNormalizer
@@ -19,7 +20,7 @@ from app.validation.write_gate import WriteGate
 
 
 CRAWLERS = {
-    "openreview": OpenReviewStyleCrawler,
+    "openreview": OpenReviewRealCrawler,
     "aclcvf": ACLCVFStyleCrawler,
     "mock": OpenReviewStyleCrawler,
 }
