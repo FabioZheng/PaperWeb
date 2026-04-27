@@ -23,18 +23,23 @@ This repository implements a production-oriented MVP for discovering accepted pa
 3. Fusion and reranking produce one evidence pack.
 4. `generation/` uses only the evidence pack to produce grounded output.
 
-## LLM roles and providers
+## LLM roles and providers (config file driven)
 Three explicit roles are implemented:
-- Router LLM (`ROUTER_PROVIDER`, `ROUTER_MODEL`)
-- Extraction LLM (`EXTRACTOR_PROVIDER`, `EXTRACTOR_MODEL`)
-- Generation LLM (`GENERATOR_PROVIDER`, `GENERATOR_MODEL`)
+- Router LLM
+- Extraction LLM
+- Generation LLM
+
+Provider + model are configured in `config/paperweb.toml` under:
+- `[llm.router]`
+- `[llm.extractor]`
+- `[llm.generator]`
 
 Supported provider adapters:
 - `mock` (default, deterministic, no API key)
 - `openai` (fully implemented)
 - `anthropic` (integration point stub)
 
-> For OpenAI set `OPENAI_API_KEY` and provider/model environment variables.
+Set OpenAI key in config (`[llm].openai_api_key`) or via `OPENAI_API_KEY`.
 
 ## Setup
 ```bash
@@ -43,11 +48,48 @@ source .venv/bin/activate
 pip install -e .[dev]
 ```
 
+## Configure before running
+Edit `config/paperweb.toml`.
+
+Example:
+```toml
+[llm]
+openai_api_key = "sk-..."
+
+[llm.router]
+provider = "openai"
+model = "gpt-4.1-mini"
+
+[llm.extractor]
+provider = "openai"
+model = "gpt-4.1-mini"
+
+[llm.generator]
+provider = "openai"
+model = "gpt-4.1-mini"
+
+[ingestion]
+source = "openreview"
+limit = 20
+research_field = "nlp"
+paper_type = "survey"
+search_query = ""
+```
+
+`research_field` controls arXiv category focus (`nlp`, `cv`, `ml`, `ai`, `robotics`, `all`).
+`paper_type` can be `recent`/`latest`/`all` or any keyword (e.g. `survey`, `benchmark`) which gets added to the query.
+
 ## Run locally
 
-### Ingest papers (real API-backed)
+### Ingest papers (real API-backed, using config defaults)
 ```bash
-python -m app.ingest --source openreview --limit 5
+python -m app.ingest
+```
+
+### Ingest papers with explicit overrides
+```bash
+python -m app.ingest --source openreview --limit 10 --field cv --paper-type survey
+python -m app.ingest --source openreview --search-query "cat:cs.LG AND all:retrieval"
 ```
 
 ### Ingest papers (fixtures)
@@ -68,17 +110,6 @@ python -m app.reindex_obsidian
 ### Run grounded query
 ```bash
 python -m app.query "Compare recent adaptive compression papers on KILT"
-```
-
-## LLM config example
-```bash
-export ROUTER_PROVIDER=openai
-export ROUTER_MODEL=gpt-4.1-mini
-export EXTRACTOR_PROVIDER=openai
-export EXTRACTOR_MODEL=gpt-4.1-mini
-export GENERATOR_PROVIDER=openai
-export GENERATOR_MODEL=gpt-4.1-mini
-export OPENAI_API_KEY=your_key_here
 ```
 
 ## Fixtures / mock mode

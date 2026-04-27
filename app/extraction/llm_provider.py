@@ -9,6 +9,8 @@ from typing import Any
 
 from openai import OpenAI
 
+from app.config import load_config
+
 
 class LLMProvider(ABC):
     """Abstract model provider for router/extractor/generator roles."""
@@ -74,12 +76,13 @@ class MockProvider(LLMProvider):
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI integration for router/extractor/generator."""
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, api_key: str | None = None):
         super().__init__(model)
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY is required when provider=openai")
-        self.client = OpenAI(api_key=api_key)
+        cfg = load_config()
+        key = api_key or cfg.llm.openai_api_key or os.getenv("OPENAI_API_KEY")
+        if not key:
+            raise ValueError("OpenAI API key is required. Set [llm].openai_api_key in config/paperweb.toml.")
+        self.client = OpenAI(api_key=key)
 
     def complete_json(self, prompt: str) -> dict:
         response = self.client.chat.completions.create(
@@ -111,16 +114,19 @@ class AnthropicCompatibleProvider(LLMProvider):
 
 
 def build_provider(role: str) -> LLMProvider:
-    """Build provider by role using environment configuration."""
-    provider_name = os.getenv(f"{role.upper()}_PROVIDER", "mock").lower()
-    model_name = os.getenv(f"{role.upper()}_MODEL", "gpt-4.1-mini" if provider_name == "openai" else "mock-model")
+    """Build provider by role using configuration file settings."""
+    cfg = load_config()
+    role_cfg = getattr(cfg.llm, role)
+    provider_name = role_cfg.provider.lower()
+    model_name = role_cfg.model
+
     if provider_name == "mock":
         return MockProvider(model_name)
     if provider_name == "openai":
-        return OpenAICompatibleProvider(model_name)
+        return OpenAICompatibleProvider(model_name, api_key=cfg.llm.openai_api_key)
     if provider_name == "anthropic":
         return AnthropicCompatibleProvider(model_name)
-    raise ValueError(f"Unknown provider: {provider_name}")
+    raise ValueError(f"Unknown provider in config for {role}: {provider_name}")
 
 
 def render_json_prompt(template: str, payload: dict) -> str:
@@ -135,13 +141,11 @@ def _safe_json_loads(raw: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # tolerate fenced JSON payloads
     start = raw.find("{")
     end = raw.rfind("}")
     if start != -1 and end != -1 and end > start:
         return json.loads(raw[start : end + 1])
     raise ValueError("Model did not return valid JSON object")
-
 
 
 def _extract_payload_from_prompt(prompt: str) -> dict[str, Any]:

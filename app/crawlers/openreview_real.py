@@ -16,17 +16,30 @@ from app.models import PaperMetadata
 ARXIV_ATOM_URL = "https://export.arxiv.org/api/query"
 ARXIV_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
+FIELD_TO_QUERY = {
+    "nlp": "cat:cs.CL",
+    "cv": "cat:cs.CV",
+    "ml": "cat:cs.LG",
+    "ai": "cat:cs.AI",
+    "robotics": "cat:cs.RO",
+    "all": "cat:cs.CL OR cat:cs.CV OR cat:cs.LG OR cat:cs.AI",
+}
+
 
 class OpenReviewRealCrawler(ConferenceCrawler):
-    """Fetches recent ML/NLP papers from arXiv and stores local PDFs."""
+    """Fetches papers from arXiv and stores local PDFs."""
 
     def __init__(
         self,
-        query: str = "cat:cs.CL OR cat:cs.LG OR cat:cs.AI",
+        query: str | None = None,
+        research_field: str = "nlp",
+        paper_type: str = "recent",
         pdf_dir: str = "data/pdfs",
         timeout_s: float = 30.0,
     ):
-        self.query = query
+        self.query = self._build_query(query=query, research_field=research_field, paper_type=paper_type)
+        self.research_field = research_field
+        self.paper_type = paper_type
         self.pdf_dir = Path(pdf_dir)
         self.pdf_dir.mkdir(parents=True, exist_ok=True)
         self.timeout_s = timeout_s
@@ -44,6 +57,16 @@ class OpenReviewRealCrawler(ConferenceCrawler):
             if len(papers) >= limit:
                 break
         return papers
+
+    def _build_query(self, query: str | None, research_field: str, paper_type: str) -> str:
+        if query:
+            return query
+        field_query = FIELD_TO_QUERY.get(research_field.lower(), FIELD_TO_QUERY["all"])
+        normalized_type = paper_type.strip().lower()
+        if normalized_type in {"recent", "latest", "all"}:
+            return field_query
+        # paper_type is treated as keyword constraint over title/abstract
+        return f"({field_query}) AND all:{normalized_type}"
 
     def _fetch_arxiv_feed(self, limit: int) -> str:
         params = {
@@ -79,6 +102,10 @@ class OpenReviewRealCrawler(ConferenceCrawler):
         pdf_url = self._find_pdf_url(entry, paper_id)
         pdf_path = self._download_pdf(paper_id, pdf_url)
 
+        topics = categories if categories else [self.research_field]
+        if self.paper_type.lower() not in {"recent", "latest", "all"}:
+            topics = [*topics, self.paper_type.lower()]
+
         return PaperMetadata(
             paper_id=paper_id,
             title=title or paper_id,
@@ -89,7 +116,7 @@ class OpenReviewRealCrawler(ConferenceCrawler):
             abstract=abstract,
             source_url=source_url,
             pdf_path=str(pdf_path),
-            topics=categories,
+            topics=topics[:6],
         )
 
     def _collect_categories(self, entry: ET.Element) -> list[str]:
