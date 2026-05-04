@@ -304,3 +304,37 @@ Notable coverage includes connector normalization, deduplication, metadata mergi
 - PDF section detection is heuristic (`pdfplumber` based).
 - Anthropic provider remains a stub.
 - Retrieval/reranking remains MVP-style (future passes can expand ranking quality).
+
+## Optional field/lab intelligence (abstract-only topic taxonomy)
+
+PaperWeb includes an optional intelligence workflow that reads existing outputs (especially `data/paperweb.db`) and builds a field/lab strategy report.
+
+- It is fully opt-in and does not change default ingest/query/consolidate/reindex behavior.
+- Topic buckets are inferred from **abstracts only**.
+- Papers are assigned to a fixed K-topic taxonomy (plus `OTHER` for low-fit papers).
+
+Example:
+
+```bash
+python scripts/analyze_field_intelligence.py \
+  --db data/paperweb.db \
+  --field "information retrieval" \
+  --lab-name "University of Queensland" \
+  --out reports/field_intelligence.md \
+  --top-k 15 \
+  --recent-years 3 \
+  --historical-years 5 \
+  --topic-k 8 \
+  --taxonomy-out reports/intelligence_taxonomy.json \
+  --assignments-out reports/topic_assignments.json \
+  --min-fit-score 0.45
+```
+
+Outputs:
+- `reports/field_intelligence.md` (report)
+- `reports/intelligence_taxonomy.json` (generated/reused taxonomy)
+- `reports/topic_assignments.json` (paper assignments)
+
+Limitations:
+- Abstract-only inference may miss full-text nuance.
+- Sparse abstracts reduce topic-assignment fidelity.
