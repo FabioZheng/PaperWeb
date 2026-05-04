@@ -1,130 +1,306 @@
 # PaperWeb MVP: Research Memory Pipeline
 
-This repository implements a production-oriented MVP for discovering accepted papers, distilling memory, storing across multiple backends, and answering grounded queries.
+PaperWeb is a production-oriented research-memory system for discovering papers, normalizing and storing paper intelligence, and answering grounded questions from retrieved evidence.
 
-## Architecture
+It currently supports two ingestion paths:
+- **Legacy pipeline** (conference-style crawler → parse → extract → store).
+- **Foundation multi-source ingestion** (arXiv/OpenAlex/Semantic Scholar connectors → dedup/enrichment/freshness tracking → canonical paper records).
 
-### Ingestion pipeline
-1. `crawlers/` discover recent papers (real arXiv-backed crawler + mock adapters).
-2. `parsing/` parses PDF/text into typed chunks with provenance.
-3. `extraction/` distills facts, claims, interpretations, and numeric results.
-4. `validation/` write gate validates evidence references, deduplicates claims, normalizes entities.
-5. `storage/` writes memory to:
-   - vector store (`data/vector_store.json`)
-   - semantic graph (`graph_nodes`/`graph_edges` in `data/paperweb.db`)
-   - structured DB (`papers`, `chunks`, `extracted`)
-   - result store (`data/result_store.json`)
-6. `consolidation/` groups papers into topic memories.
-7. `obsidian/` generates per-paper and per-topic markdown notes, then reindexes curated notes into vector memory.
+---
 
-### Query pipeline
-1. `query_router/` rule-first planner + optional Router LLM.
-2. `retrieval/` queries vector, graph, result, and curated obsidian memory.
-3. Fusion and reranking produce one evidence pack.
-4. `generation/` uses only the evidence pack to produce grounded output.
+## Table of contents
 
-## LLM roles and providers (config file driven)
-Three explicit roles are implemented:
-- Router LLM
-- Extraction LLM
-- Generation LLM
+1. [What PaperWeb does](#what-paperweb-does)
+2. [System architecture](#system-architecture)
+3. [Pipeline tree (high-level)](#pipeline-tree-high-level)
+4. [Data model overview](#data-model-overview)
+5. [Project components](#project-components)
+6. [Configuration](#configuration)
+7. [Installation](#installation)
+8. [How to run: common workflows](#how-to-run-common-workflows)
+9. [How multi-source ingestion works](#how-multi-source-ingestion-works)
+10. [How legacy ingest+query works](#how-legacy-ingestquery-works)
+11. [How to inspect outputs/stores](#how-to-inspect-outputsstores)
+12. [Troubleshooting](#troubleshooting)
+13. [Tests](#tests)
+14. [Current limitations](#current-limitations)
 
-Provider + model are configured in `config/paperweb.toml` under:
-- `[llm.router]`
-- `[llm.extractor]`
-- `[llm.generator]`
+---
 
-Supported provider adapters:
-- `mock` (default, deterministic, no API key)
-- `openai` (fully implemented)
-- `anthropic` (integration point stub)
+## What PaperWeb does
 
-Set OpenAI key in config (`[llm].openai_api_key`) or via `OPENAI_API_KEY`.
+PaperWeb helps you build a local memory layer over research papers:
+- discovers papers from one or more sources,
+- normalizes metadata to a common schema,
+- deduplicates overlapping papers,
+- tracks freshness/version changes over time,
+- parses text/tables from PDFs,
+- extracts structured claims/results,
+- stores evidence in SQLite + JSON stores,
+- answers grounded queries from retrieved evidence.
 
-## Setup
+---
+
+## System architecture
+
+PaperWeb has two compatible ingest entrypoints:
+
+1. **Multi-source ingestion foundation** (for latest-paper discovery and canonical metadata management).
+2. **Legacy ingest pipeline** (for parsing/extraction/vector/graph/result memory generation).
+
+The query side uses router → retrieval → fusion → grounded generation.
+
+---
+
+## Pipeline tree (high-level)
+
+```text
+PaperWeb
+├── Ingestion (foundation path)
+│   ├── Multi-source connectors
+│   │   ├── arXiv connector
+│   │   ├── Semantic Scholar connector
+│   │   └── OpenAlex connector
+│   ├── Normalize to PaperMetadata
+│   ├── Identity resolution + deduplication
+│   ├── Metadata enrichment/merge
+│   ├── Freshness + version tracking
+│   └── Persist canonical papers (SQLite payload)
+│
+├── Ingestion (legacy path)
+│   ├── Conference crawler adapters
+│   ├── PDF/text parsing into chunks
+│   ├── Extraction (facts/claims/interpretations/results)
+│   ├── Validation + entity normalization
+│   ├── Storage
+│   │   ├── Structured DB (papers/chunks/extracted)
+│   │   ├── Semantic graph (nodes/edges)
+│   │   ├── Vector-like store (token overlap)
+│   │   └── Result store (numeric records)
+│   ├── Topic consolidation
+│   └── Obsidian note generation + reindex
+│
+└── Query pipeline
+    ├── Query router
+    ├── Multi-store retrieval
+    ├── Fusion/reranking
+    └── Grounded generation
+```
+
+---
+
+## Data model overview
+
+`PaperMetadata` is the canonical normalized metadata schema used across connectors and persistence.
+
+Important fields include:
+- identity: `paper_id`, `doi`, `arxiv_id`, `openreview_id`, `semantic_scholar_id`, `openalex_id`
+- bibliographic: `title`, `abstract`, `authors`, `published_date`, `updated_date`, `venue`, `year`
+- links: `source`, `source_url`, `pdf_url`, `pdf_path`, `code_url`
+- impact/context: `citation_count`, `reference_count`, `influential_citation_count`, `fields_of_study`, `topics`
+- provenance/history: `raw_source_payload`, `source_seen_history`, `field_provenance`
+- freshness/versioning: `first_seen_at`, `last_seen_at`, `version`, `metadata_hash`, `pdf_hash`, `is_new`, `is_updated`
+
+---
+
+## Project components
+
+### Connectors and crawlers
+- `app/crawlers/sources.py`: common connector interface + Arxiv/OpenAlex/SemanticScholar connectors.
+- `app/crawlers/openreview_real.py`: arXiv-backed real crawler for legacy ingest source `openreview`.
+- `app/crawlers/mock.py`: fixture-based crawlers for local deterministic runs.
+
+### Ingestion merge/freshness
+- `app/crawlers/paper_merge.py`:
+  - `PaperIdentityResolver`
+  - `PaperDeduplicator`
+  - `MetadataEnricher`
+  - `FreshnessTracker`
+
+### Legacy parse/extract
+- `app/parsing/pdf_parser.py`: PDF chunk/table extraction (plus `.txt` fixture compatibility).
+- `app/extraction/extractor.py`: structured extraction handling.
+- `app/validation/write_gate.py`: evidence and write validation.
+
+### Storage
+- `app/storage/structured_db.py`: SQLite `papers/chunks/extracted`.
+- `app/storage/graph_store.py`: SQLite `graph_nodes/graph_edges`.
+- `app/storage/vector_store.py`: local vector-like JSON store.
+- `app/storage/result_store.py`: numeric result JSON store.
+
+### Query
+- `app/query_router/router.py`, `app/retrieval/*`, `app/generation/generator.py`, `app/query.py`.
+
+---
+
+## Configuration
+
+PaperWeb uses `config/paperweb.toml` (or `PAPERWEB_CONFIG` override) for default behavior.
+
+Example:
+
+```toml
+[llm]
+openai_api_key = ""
+
+[llm.router]
+provider = "mock"
+model = "gpt-4.1-mini"
+
+[llm.extractor]
+provider = "mock"
+model = "gpt-4.1-mini"
+
+[llm.generator]
+provider = "mock"
+model = "gpt-4.1-mini"
+
+[ingestion]
+source = "mock"
+limit = 5
+research_field = "nlp"
+paper_type = "recent"
+search_query = ""
+```
+
+Environment variables commonly used:
+- `PAPERWEB_CONFIG` (optional path override)
+- `OPENAI_API_KEY` (if using `openai` provider)
+
+---
+
+## Installation
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
 ```
 
-## Configure before running
-Edit `config/paperweb.toml`.
+---
 
-Example:
-```toml
-[llm]
-openai_api_key = "sk-..."
+## How to run: common workflows
 
-[llm.router]
-provider = "openai"
-model = "gpt-4.1-mini"
+### A) Multi-source latest-paper discovery (foundation ingest)
 
-[llm.extractor]
-provider = "openai"
-model = "gpt-4.1-mini"
+Use this when your goal is broad discovery + canonical metadata + dedup + freshness tracking.
 
-[llm.generator]
-provider = "openai"
-model = "gpt-4.1-mini"
-
-[ingestion]
-source = "openreview"
-limit = 20
-research_field = "nlp"
-paper_type = "survey"
-search_query = ""
-```
-
-`research_field` controls arXiv category focus (`nlp`, `cv`, `ml`, `ai`, `robotics`, `all`).
-`paper_type` can be `recent`/`latest`/`all` or any keyword (e.g. `survey`, `benchmark`) which gets added to the query.
-
-## Run locally
-
-### Ingest papers (real API-backed, using config defaults)
 ```bash
-python -m app.ingest
+python -m app.ingest \
+  --query "agentic information retrieval evaluation" \
+  --sources arxiv,semantic_scholar,openalex \
+  --limit 50
 ```
 
-### Ingest papers with explicit overrides
-```bash
-python -m app.ingest --source openreview --limit 10 --field cv --paper-type survey
-python -m app.ingest --source openreview --search-query "cat:cs.LG AND all:retrieval"
-```
+This prints summary counters for fetched/new/updated/duplicates merged/failed sources.
 
-### Ingest papers (fixtures)
+### B) Legacy ingest pipeline (parse + extraction memory generation)
+
 ```bash
 python -m app.ingest --source mock --limit 5
 ```
 
-### Consolidate topics
+Or real crawler mode:
+
 ```bash
-python -m app.consolidate
+python -m app.ingest --source openreview --limit 10 --field nlp --paper-type recent
 ```
 
-### Re-index Obsidian notes
+### C) Consolidate topics + reindex notes
+
 ```bash
+python -m app.consolidate
 python -m app.reindex_obsidian
 ```
 
-### Run grounded query
+### D) Grounded querying
+
 ```bash
 python -m app.query "Compare recent adaptive compression papers on KILT"
 ```
 
-## Fixtures / mock mode
-- Input papers: `fixtures/papers/mock_papers.json`
-- Mock paper texts: `fixtures/papers/p1.txt`, `fixtures/papers/p2.txt`
-- Obsidian vault: `fixtures/obsidian_vault/`
+---
 
-Mock mode remains available for deterministic tests.
+## How multi-source ingestion works
+
+When `--query` is provided, ingest runs connector mode:
+
+1. Call selected connectors (`--sources`) and normalize to `PaperMetadata`.
+2. Deduplicate by identity priority:
+   - DOI
+   - arXiv ID
+   - OpenReview ID
+   - Semantic Scholar ID
+   - OpenAlex ID
+   - normalized title fallback
+3. Merge richer metadata across duplicates.
+4. Apply freshness tracking:
+   - `first_seen_at`/`last_seen_at`
+   - version increment if metadata/pdf hash changed
+   - set `is_new` and `is_updated`
+5. Persist canonical paper payloads into SQLite `papers` table.
+
+---
+
+## How legacy ingest+query works
+
+Legacy ingest path builds retrieval memory:
+- paper crawl,
+- parse into chunks,
+- extract structured records,
+- validate,
+- write to graph/vector/result stores,
+- consolidate topic notes,
+- reindex notes.
+
+Query path:
+- route query,
+- retrieve from vector/graph/result,
+- fuse evidence,
+- generate grounded output.
+
+---
+
+## How to inspect outputs/stores
+
+Primary files:
+- `data/paperweb.db` (SQLite tables for metadata + graph)
+- `data/vector_store.json`
+- `data/result_store.json`
+- `data/paper_index.json` (freshness/version index)
+
+Quick checks:
+
+```bash
+sqlite3 data/paperweb.db ".tables"
+sqlite3 data/paperweb.db "SELECT COUNT(*) FROM papers;"
+sqlite3 data/paperweb.db "SELECT COUNT(*) FROM graph_nodes;"
+sqlite3 data/paperweb.db "SELECT COUNT(*) FROM graph_edges;"
+```
+
+---
+
+## Troubleshooting
+
+- **No API key errors**: set `OPENAI_API_KEY` or keep providers as `mock` in config.
+- **External source failure**: connector mode logs warnings and continues other sources.
+- **Few/empty results**: try broader `--query` or fewer source filters.
+- **Proxy/network issues**: run with `--source mock` for offline test flow.
+
+---
 
 ## Tests
+
 ```bash
 pytest
 ```
 
-## Limitations / TODOs
-- PDF parsing uses `pdfplumber`; section detection is heuristic.
-- Anthropic adapter remains a stub until credentials and SDKs are enabled.
-- Graph query set is intentionally minimal but includes contradiction/refinement relation support.
+Notable coverage includes connector normalization, deduplication, metadata merging, and freshness tracking behavior.
+
+---
+
+## Current limitations
+
+- PDF section detection is heuristic (`pdfplumber` based).
+- Anthropic provider remains a stub.
+- Retrieval/reranking remains MVP-style (future passes can expand ranking quality).
