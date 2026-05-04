@@ -1,0 +1,23 @@
+[llm]
+# Optional: set here or in environment variable OPENAI_API_KEY
+openai_api_key = ""
+
+[llm.router]
+provider = "mock"
+model = "gpt-4.1-mini"
+
+[llm.extractor]
+provider = "mock"
+model = "gpt-4.1-mini"
+
+[llm.generator]
+provider = "mock"
+model = "gpt-4.1-mini"
+
+[ingestion]
+source = "mock"
+limit = 5
+research_field = "nlp"
+paper_type = "recent"
+# Optional full override query (arXiv API syntax), e.g. "cat:cs.CV AND all:diffusion"
+search_query = ""
