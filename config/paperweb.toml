@@ -1,0 +1,55 @@
+[llm]
+openai_api_key = ""
+
+[llm.router]
+provider = "openai"
+model = "gpt-5.4-mini"
+max_input_tokens = 2000
+max_output_tokens = 300
+temperature = 0.0
+enabled = true
+
+[llm.extractor]
+provider = "openai"
+model = "gpt-5.4-mini"
+max_input_tokens = 12000
+max_output_tokens = 2000
+temperature = 0.0
+enabled = true
+
+[llm.generator]
+provider = "openai"
+model = "gpt-5.4"
+max_input_tokens = 24000
+max_output_tokens = 3000
+temperature = 0.2
+enabled = true
+
+[llm.topic_extractor]
+provider = "openai"
+model = "gpt-5.4-mini"
+max_input_tokens = 8000
+max_output_tokens = 1200
+temperature = 0.0
+enabled = true
+
+[llm.semantic_summarizer]
+provider = "openai"
+model = "gpt-5.4-mini"
+max_input_tokens = 6000
+max_output_tokens = 900
+temperature = 0.2
+enabled = true
+
+[llm.cost_limits]
+enabled = true
+max_estimated_run_cost_usd = 5.0
+max_calls_per_role = 1000
+warn_after_estimated_cost_usd = 1.0
+
+[ingestion]
+source = "mock"
+limit = 5
+research_field = "nlp"
+paper_type = "recent"
+search_query = ""
