@@ -4,6 +4,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 
+from app.extraction.llm_provider import build_provider
 from app.intelligence.schema import IntelligencePaper
 from app.intelligence.taxonomy import TopicBucket
 
@@ -28,6 +29,8 @@ def assign_papers_to_taxonomy(
     llm_provider: str | None = None,
     min_fit_score: float = 0.45,
 ) -> list[TopicAssignment]:
+    if llm_provider:
+        _ = build_provider("topic_extractor")
     assignments: list[TopicAssignment] = []
     for p in papers:
         atok = _tok(p.abstract)

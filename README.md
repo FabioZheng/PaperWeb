@@ -338,3 +338,62 @@ Outputs:
 Limitations:
 - Abstract-only inference may miss full-text nuance.
 - Sparse abstracts reduce topic-assignment fidelity.
+
+## Five-role LLM lineup and cost controls
+
+PaperWeb supports five logical LLM roles (each configurable independently):
+- `router`
+- `extractor`
+- `generator`
+- `topic_extractor`
+- `semantic_summarizer`
+
+Recommended cost-aware defaults use mini models for bulk tasks and a stronger model for final generation.
+
+```toml
+[llm.router]
+provider = "openai"
+model = "gpt-5.4-mini"
+
+[llm.extractor]
+provider = "openai"
+model = "gpt-5.4-mini"
+
+[llm.generator]
+provider = "openai"
+model = "gpt-5.4"
+
+[llm.topic_extractor]
+provider = "openai"
+model = "gpt-5.4-mini"
+
+[llm.semantic_summarizer]
+provider = "openai"
+model = "gpt-5.4-mini"
+
+[llm.cost_limits]
+enabled = true
+max_estimated_run_cost_usd = 5.00
+warn_after_estimated_cost_usd = 1.00
+```
+
+Token/cost tracking is recorded per role in `app/llm/usage_tracker.py`, including call counts, token totals, and estimated costs.
+For intelligence batch runs, use `--dry-run-cost`, `--max-papers`, `--force`, and `--ignore-cost-limit`.
+
+## Centralized LLM config, usage tracking, and dashboard
+
+All 5 LLM roles are centrally configured in `config/paperweb.toml` and accessed via `get_llm_role_config(role)`.
+This includes model, token limits, temperature, enabled flag, and cost limits.
+
+Usage/cost tracking is persisted to `data/llm_usage.sqlite` per call with role/model/provider/run/module metadata.
+
+Dry-run and safeguards:
+- `--dry-run-cost` estimates cost without API calls.
+- `--max-papers` limits batch size.
+- `--force` / `--ignore-cost-limit` override cost-limit stop behavior.
+
+Generate dashboard:
+
+```bash
+python scripts/llm_usage_dashboard.py --usage-db data/llm_usage.sqlite --out reports/llm_usage_dashboard.html
+```

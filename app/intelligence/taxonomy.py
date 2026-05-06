@@ -5,6 +5,7 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 
+from app.extraction.llm_provider import build_provider
 from app.intelligence.schema import IntelligencePaper
 
 STOP = {"the", "and", "for", "with", "from", "that", "this", "into", "using", "based", "study", "paper", "approach", "model"}
@@ -30,6 +31,8 @@ def build_topic_taxonomy(
     field: str,
     llm_provider: str | None = None,
 ) -> list[TopicBucket]:
+    if llm_provider:
+        _ = build_provider("topic_extractor")
     # deterministic fallback: abstracts-only keyword grouping
     corpus = " ".join((p.abstract or "") for p in papers)
     common = [w for w, _ in Counter(_tokens(corpus)).most_common(max(k * 4, k))]

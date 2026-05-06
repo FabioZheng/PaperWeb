@@ -14,6 +14,7 @@ class GraphStore:
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS graph_edges (edge_id TEXT PRIMARY KEY, source_id TEXT, target_id TEXT, relation_type TEXT)"
         )
+        self.conn.execute("CREATE TABLE IF NOT EXISTS graph_semantic (node_id TEXT PRIMARY KEY, payload TEXT)")
         self.conn.commit()
 
     def add_node(self, node_id: str, node_type: str, name: str) -> None:
@@ -35,3 +36,8 @@ class GraphStore:
     def contradictions(self) -> list[tuple[str, str]]:
         q = "SELECT source_id, target_id FROM graph_edges WHERE relation_type='CONTRADICTS'"
         return self.conn.execute(q).fetchall()
+
+
+    def upsert_semantic(self, node_id: str, payload_json: str) -> None:
+        self.conn.execute("REPLACE INTO graph_semantic VALUES (?, ?)", (node_id, payload_json))
+        self.conn.commit()

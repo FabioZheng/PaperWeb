@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import json
 
 from app.config import load_config
 from app.consolidation.topic_consolidator import TopicConsolidator
@@ -17,6 +18,7 @@ from app.normalization.entity_normalizer import EntityNormalizer
 from app.obsidian.notes import ObsidianService
 from app.parsing.pdf_parser import PDFParser
 from app.storage.graph_store import GraphStore
+from app.storage.semantic_summary import build_semantic_summary
 from app.storage.result_store import ResultStore
 from app.storage.structured_db import StructuredDB
 from app.storage.vector_store import VectorStore
@@ -89,6 +91,9 @@ def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type:
     all_claims: list[tuple[str, str]] = []
     for paper in papers:
         sdb.upsert_paper(paper)
+        graph.add_node(paper.paper_id, "Paper", paper.title[:128])
+        sem = build_semantic_summary(paper.title, paper.abstract or "")
+        graph.upsert_semantic(paper.paper_id, json.dumps(sem))
         chunks = parser.parse(paper)
         sdb.upsert_chunks(chunks)
 
