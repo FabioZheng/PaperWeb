@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.cli import print_cli_banner
 import argparse
 
 from app.generation.generator import GenerationService
@@ -24,6 +25,7 @@ def run_query(query: str) -> str:
 
 
 def main() -> None:
+    print_cli_banner()
     ap = argparse.ArgumentParser()
     ap.add_argument("query")
     args = ap.parse_args()

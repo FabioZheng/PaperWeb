@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.cli import print_cli_banner
 import argparse
 import logging
 import json
@@ -136,6 +137,7 @@ def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type:
 
 
 def main() -> None:
+    print_cli_banner()
     cfg = load_config()
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default=cfg.ingestion.source, choices=list(CRAWLERS.keys()))

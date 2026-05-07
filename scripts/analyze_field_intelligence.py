@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import load_config
+from app.cli import print_cli_banner
 from app.intelligence.institution_ranking import rank_institutions_by_direction
 from app.intelligence.lab_coverage import compute_lab_coverage
 from app.intelligence.loader import load_intelligence_papers
@@ -16,6 +17,7 @@ from app.llm.usage_tracker import get_usage_summary, print_usage_summary
 
 
 def main() -> None:
+    print_cli_banner()
     p = argparse.ArgumentParser()
     p.add_argument("--db", default="data/paperweb.db")
     p.add_argument("--field", required=True)
@@ -40,10 +42,6 @@ def main() -> None:
     args = p.parse_args()
 
     cfg = load_config()
-    print("LLM lineup:")
-    for role in ["router", "extractor", "generator", "topic_extractor", "semantic_summarizer"]:
-        rc = getattr(cfg.llm, role)
-        print(f"- {role}: {rc.provider} / {rc.model} ({'enabled' if rc.enabled else 'disabled'})")
 
     papers = load_intelligence_papers(args.db)
     if args.max_papers:
