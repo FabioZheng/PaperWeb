@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from app.cli import print_cli_banner
 from app.obsidian.notes import ObsidianService
 from app.storage.vector_store import VectorStore
 
 
 def main() -> None:
+    print_cli_banner()
     store = VectorStore.from_file()
     count = ObsidianService().reindex_notes(store)
     store.save()
