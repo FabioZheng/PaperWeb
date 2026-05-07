@@ -397,3 +397,15 @@ Generate dashboard:
 ```bash
 python scripts/llm_usage_dashboard.py --usage-db data/llm_usage.sqlite --out reports/llm_usage_dashboard.html
 ```
+
+### Dashboard billing semantics and reset
+
+- LLM usage/cost tables in the dashboard include **real provider API calls only**.
+- Mock, dry-run, fallback/unavailable, cached, skipped, and other simulated calls are excluded from billable totals.
+- To reset only usage history (without touching config/papers/graph):
+
+```bash
+python scripts/llm_usage_dashboard.py --usage-db data/llm_usage.sqlite --reset --yes
+```
+
+If you run `--reset` without `--yes`, the command asks for confirmation and does not delete records.

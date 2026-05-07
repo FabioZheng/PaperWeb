@@ -1,6 +1,6 @@
 from app.config import ROLE_DEFAULTS, VALID_LLM_ROLES, get_llm_role_config, load_config
 from app.extraction.llm_provider import build_provider
-from app.llm.usage_tracker import get_usage_by_model, get_usage_by_run, get_usage_summary, record_llm_usage
+from app.llm.usage_tracker import get_usage_by_model, get_usage_by_run, get_usage_summary, record_llm_usage, reset_llm_usage_history
 
 
 def test_config_supports_all_roles():
@@ -26,12 +26,20 @@ def test_provider_factory_all_roles():
         assert build_provider(role) is not None
 
 
-def test_usage_persisted_and_aggregated(tmp_path):
+def test_non_real_usage_not_counted(tmp_path):
     db = str(tmp_path / "usage.sqlite")
-    record_llm_usage(role="router", provider="openai", model="gpt-5.4-mini", input_tokens=1000, output_tokens=200, usage_db_path=db)
-    record_llm_usage(role="extractor", provider="openai", model="unknown-model", input_tokens=100, output_tokens=20, usage_db_path=db)
+    record_llm_usage(role="router", provider="mock", model="gpt-5.4-mini", input_tokens=1000, output_tokens=200, usage_db_path=db, is_real_api_call=False, runtime_mode="mock")
+    s = get_usage_summary(db)
+    assert s == {}
+
+
+def test_real_usage_and_reset(tmp_path):
+    db = str(tmp_path / "usage.sqlite")
+    record_llm_usage(role="router", provider="openai", model="gpt-5.4-mini", input_tokens=1000, output_tokens=200, usage_db_path=db, is_real_api_call=True, runtime_mode="real_api")
     s = get_usage_summary(db)
     assert s["router"]["calls"] == 1
-    assert s["extractor"]["total_cost"] >= 0
     assert get_usage_by_model(db)
     assert get_usage_by_run(db)
+    reset_llm_usage_history(db)
+    assert get_usage_summary(db) == {}
+    assert load_config().llm.roles["router"].model
