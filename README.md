@@ -397,3 +397,36 @@ Generate dashboard:
 ```bash
 python scripts/llm_usage_dashboard.py --usage-db data/llm_usage.sqlite --out reports/llm_usage_dashboard.html
 ```
+
+## Streamlit UI
+
+Launch the UI:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+### Create/switch DB collections
+
+- Use the sidebar to select an existing SQLite DB under `data/dbs/*.db`.
+- Use **Create and switch** to make a new collection DB (for example `agentic_ir.db`, `compression.db`).
+- The active DB is always shown at the top of the sidebar and all tables/pipeline writes are scoped to that DB.
+
+### Recommended workflow for separate collections
+
+1. Create one DB per project/topic (e.g., `data/dbs/agentic_ir.db`).
+2. Run ingestion pipeline from the UI with source/query/limit controls.
+3. Run query only after pipeline stages complete for that same DB.
+4. Switch DB only when you want to change collection context; papers/chunks/extracted/graph/semantic data are separated by DB.
+
+### Monitor models, progress, and usage
+
+- The top dashboard shows model lineup for router/extractor/generator/topic_extractor/semantic_summarizer.
+- Pipeline panel shows progress + event logs for ingestion and extraction stages.
+- Usage panel reads the usage tracker SQLite table and shows real API call counts/tokens/cost by role.
+
+### Browse, query, and export
+
+- Query panel displays answer text, citations, router plan, and retrieved evidence rows.
+- Dataset explorer lets you browse papers, chunks, extracted payloads, graph nodes/edges, and semantic payloads.
+- Each table tab supports search and export to JSON/CSV.

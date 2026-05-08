@@ -6,6 +6,7 @@ from app.cli import print_cli_banner
 import argparse
 import logging
 import json
+from collections.abc import Callable
 
 from app.config import load_config
 from app.consolidation.topic_consolidator import TopicConsolidator
@@ -14,10 +15,12 @@ from app.crawlers.openreview_real import OpenReviewRealCrawler
 from app.crawlers.paper_merge import FreshnessTracker, PaperDeduplicator
 from app.crawlers.sources import ArxivConnector, OpenAlexConnector, PaperSourceConnector, SemanticScholarConnector
 from app.extraction.extractor import ExtractionService
+from app.llm.usage_tracker import set_usage_db_path
 from app.models import Entity, PaperMetadata
 from app.normalization.entity_normalizer import EntityNormalizer
 from app.obsidian.notes import ObsidianService
 from app.parsing.pdf_parser import PDFParser
+from app.runtime import build_runtime_paths
 from app.storage.graph_store import GraphStore
 from app.storage.semantic_summary import build_semantic_summary
 from app.storage.result_store import ResultStore
@@ -46,7 +49,7 @@ def _build_crawler(source: str, research_field: str, paper_type: str, search_que
     return CRAWLERS[source]()
 
 
-def run_multi_source_ingest(query: str, sources: list[str], limit: int) -> dict[str, int]:
+def run_multi_source_ingest(query: str, sources: list[str], limit: int, db_path: str = "data/paperweb.db") -> dict[str, int]:
     fetched: list[PaperMetadata] = []
     failed = 0
     for source in sources:
@@ -64,7 +67,7 @@ def run_multi_source_ingest(query: str, sources: list[str], limit: int) -> dict[
     dedup = PaperDeduplicator().deduplicate(fetched)
     tracked, new_count, updated_count = FreshnessTracker().apply(dedup.papers)
 
-    sdb = StructuredDB()
+    sdb = StructuredDB(path=db_path)
     for paper in tracked:
         sdb.upsert_paper(paper)
 
@@ -77,47 +80,55 @@ def run_multi_source_ingest(query: str, sources: list[str], limit: int) -> dict[
     }
 
 
-def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type: str = "recent", search_query: str | None = None) -> None:
+def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type: str = "recent", search_query: str | None = None, *, db_path: str = "data/paperweb.db", usage_db_path: str = "data/llm_usage.sqlite", extraction_enabled: bool = True, topic_inference_enabled: bool = True, semantic_summary_enabled: bool = True, on_event: Callable[[str], None] | None = None) -> None:
+    runtime = build_runtime_paths(db_path, usage_db_path)
+    set_usage_db_path(runtime.usage_db_path)
     crawler = _build_crawler(source, research_field, paper_type, search_query)
     parser = PDFParser()
     extractor = ExtractionService()
     gate = WriteGate(EntityNormalizer())
-    sdb = StructuredDB()
-    graph = GraphStore()
-    vector = VectorStore.from_file()
-    results = ResultStore.from_file()
+    sdb = StructuredDB(path=runtime.db_path)
+    graph = GraphStore(path=runtime.db_path)
+    vector = VectorStore.from_file(runtime.vector_store_path)
+    results = ResultStore.from_file(runtime.result_store_path)
     obsidian = ObsidianService()
 
     papers = crawler.fetch_recent(limit=limit)
     all_claims: list[tuple[str, str]] = []
-    for paper in papers:
+    for i, paper in enumerate(papers, start=1):
+        if on_event:
+            on_event(f"[{i}/{len(papers)}] Ingesting {paper.paper_id}: {paper.title}")
         sdb.upsert_paper(paper)
         graph.add_node(paper.paper_id, "Paper", paper.title[:128])
-        sem = build_semantic_summary(paper.title, paper.abstract or "")
+        sem = build_semantic_summary(paper.title, paper.abstract or "") if semantic_summary_enabled else {"global_summary": paper.abstract or ""}
         graph.upsert_semantic(paper.paper_id, json.dumps(sem))
         chunks = parser.parse(paper)
         sdb.upsert_chunks(chunks)
 
-        extracted = extractor.extract(paper, chunks)
-        entities = [
-            Entity(entity_id=f"{paper.paper_id}_e0", canonical_name="KILT", aliases=["KILT benchmark"], entity_type="Dataset")
-        ]
-        validated, _ = gate.validate_and_prepare(extracted, chunks, entities)
-        sdb.upsert_extracted(paper.paper_id, validated)
+        if extraction_enabled:
+            extracted = extractor.extract(paper, chunks)
+            entities = [
+                Entity(entity_id=f"{paper.paper_id}_e0", canonical_name="KILT", aliases=["KILT benchmark"], entity_type="Dataset")
+            ]
+            validated, _ = gate.validate_and_prepare(extracted, chunks, entities)
+            sdb.upsert_extracted(paper.paper_id, validated)
+        else:
+            validated = None
 
         for c in chunks:
             vector.add(c.chunk_id, c.text, {"paper_id": paper.paper_id, "section": c.section})
-        for claim in validated.claims:
-            all_claims.append((claim.claim_id, claim.text.lower()))
-            vector.add(claim.claim_id, claim.text, {"paper_id": paper.paper_id, "type": "claim"})
-            graph.add_node(claim.claim_id, "Claim", claim.text[:64])
-            graph.add_edge(f"edge_{paper.paper_id}_{claim.claim_id}", paper.paper_id, claim.claim_id, "MAKES_CLAIM")
-        for res in validated.results:
-            graph.add_node(res.dataset, "Dataset", res.dataset)
-            graph.add_edge(f"eval_{paper.paper_id}_{res.result_id}", paper.paper_id, res.dataset, "EVALUATED_ON")
-        if len(validated.claims) > 1:
-            graph.add_edge(f"refines_{paper.paper_id}", validated.claims[0].claim_id, validated.claims[-1].claim_id, "REFINES")
-        results.add_many(validated.results)
+        if validated:
+            for claim in validated.claims:
+                all_claims.append((claim.claim_id, claim.text.lower()))
+                vector.add(claim.claim_id, claim.text, {"paper_id": paper.paper_id, "type": "claim"})
+                graph.add_node(claim.claim_id, "Claim", claim.text[:64])
+                graph.add_edge(f"edge_{paper.paper_id}_{claim.claim_id}", paper.paper_id, claim.claim_id, "MAKES_CLAIM")
+            for res in validated.results:
+                graph.add_node(res.dataset, "Dataset", res.dataset)
+                graph.add_edge(f"eval_{paper.paper_id}_{res.result_id}", paper.paper_id, res.dataset, "EVALUATED_ON")
+            if len(validated.claims) > 1:
+                graph.add_edge(f"refines_{paper.paper_id}", validated.claims[0].claim_id, validated.claims[-1].claim_id, "REFINES")
+            results.add_many(validated.results)
 
         obsidian.write_paper_note(paper, paper.abstract or "")
 
@@ -126,14 +137,15 @@ def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type:
             if ("improv" in text_a and "reduce" in text_b) or ("reduce" in text_a and "improv" in text_b):
                 graph.add_edge(f"contr_{cid_a}_{cid_b}", cid_a, cid_b, "CONTRADICTS")
 
-    topics = TopicConsolidator().consolidate(papers)
-    for t in topics:
-        obsidian.write_topic_note(t)
-        vector.add(f"topic_{t.topic_id}", t.summary, {"topic": t.topic_name})
+    if topic_inference_enabled:
+        topics = TopicConsolidator().consolidate(papers)
+        for t in topics:
+            obsidian.write_topic_note(t)
+            vector.add(f"topic_{t.topic_id}", t.summary, {"topic": t.topic_name})
 
     obsidian.reindex_notes(vector)
-    vector.save()
-    results.save()
+    vector.save(runtime.vector_store_path)
+    results.save(runtime.result_store_path)
 
 
 def main() -> None:
@@ -150,7 +162,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.query:
-        summary = run_multi_source_ingest(args.query, [s.strip() for s in args.sources.split(",") if s.strip()], args.limit)
+        summary = run_multi_source_ingest(args.query, [s.strip() for s in args.sources.split(",") if s.strip()], args.limit, db_path=cfg.storage.db_path)
         print(
             "Fetched={fetched} New={new} Updated={updated} DuplicatesMerged={duplicates_merged} FailedSources={failed_sources}".format(
                 **summary
@@ -158,7 +170,7 @@ def main() -> None:
         )
         return
 
-    run_ingest(args.source, args.limit, args.field, args.paper_type, args.search_query or None)
+    run_ingest(args.source, args.limit, args.field, args.paper_type, args.search_query or None, db_path=cfg.storage.db_path, usage_db_path=cfg.storage.usage_db_path)
 
 
 if __name__ == "__main__":
