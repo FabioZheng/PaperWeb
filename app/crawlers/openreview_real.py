@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
@@ -79,9 +80,15 @@ class OpenReviewRealCrawler(ConferenceCrawler):
         query = "&".join(f"{k}={quote(v)}" for k, v in params.items())
         url = f"{ARXIV_ATOM_URL}?{query}"
         with httpx.Client(timeout=self.timeout_s, follow_redirects=True) as client:
-            response = client.get(url, headers={"User-Agent": "paperweb/0.1 (+https://example.org)"})
-            response.raise_for_status()
-            return response.text
+            for attempt in range(4):
+                response = client.get(url, headers={"User-Agent": "paperweb/0.1 (+https://example.org)"})
+                if response.status_code != 429:
+                    response.raise_for_status()
+                    return response.text
+                retry_after = response.headers.get("Retry-After")
+                wait_s = float(retry_after) if retry_after and retry_after.isdigit() else (1.5 * (attempt + 1))
+                time.sleep(wait_s)
+        raise RuntimeError("arXiv API rate-limited (HTTP 429) after retries; please retry in a minute or lower request frequency.")
 
     def _entry_to_paper(self, entry: ET.Element) -> PaperMetadata | None:
         paper_id_raw = _text(entry.find("atom:id", ARXIV_NS))

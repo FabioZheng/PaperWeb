@@ -11,6 +11,11 @@ RUN_ID = uuid4().hex[:10]
 USAGE_DB_PATH = "data/llm_usage.sqlite"
 
 
+def set_usage_db_path(path: str) -> None:
+    global USAGE_DB_PATH
+    USAGE_DB_PATH = path
+
+
 def _conn(path: str = USAGE_DB_PATH):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     c = sqlite3.connect(path)

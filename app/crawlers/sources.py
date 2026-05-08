@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import re
 from abc import ABC, abstractmethod
 from datetime import date
 from typing import Any
@@ -13,6 +15,10 @@ import httpx
 from app.models import PaperMetadata
 
 LOGGER = logging.getLogger(__name__)
+
+DEFAULT_HTTP_HEADERS = {
+    "User-Agent": "PaperWeb/0.1 (+https://github.com/)"
+}
 
 
 class PaperSourceConnector(ABC):
@@ -34,44 +40,49 @@ class ArxivConnector(PaperSourceConnector):
     name = "arxiv"
 
     def search(self, query: str, limit: int = 20, from_date: date | None = None, to_date: date | None = None, fields: list[str] | None = None) -> list[PaperMetadata]:
-        q = query or "cat:cs.CL"
+        candidates = _arxiv_query_candidates(query or "")
+        q = candidates[0]
         url = "https://export.arxiv.org/api/query"
-        params = {
-            "search_query": q,
-            "start": 0,
-            "max_results": limit,
-            "sortBy": "submittedDate",
-            "sortOrder": "descending",
-        }
-        text = httpx.get(url, params=params, timeout=30.0).text
-        items = text.split("<entry>")[1:]
         out: list[PaperMetadata] = []
-        for entry in items:
-            arxiv_id = _between(entry, "<id>", "</id>").split("/")[-1]
-            title = _clean(_between(entry, "<title>", "</title>"))
-            abstract = _clean(_between(entry, "<summary>", "</summary>"))
-            published = _between(entry, "<published>", "</published>")[:10] or None
-            updated = _between(entry, "<updated>", "</updated>")[:10] or published
-            authors = [_clean(v) for v in _all_between(entry, "<name>", "</name>")]
-            pdf_url = _find_pdf_url(entry, arxiv_id)
-            out.append(
-                PaperMetadata(
-                    paper_id=f"arxiv:{arxiv_id}",
-                    source=self.name,
-                    source_url=f"https://arxiv.org/abs/{arxiv_id}",
-                    title=title,
-                    abstract=abstract,
-                    authors=authors,
-                    published_date=published,
-                    updated_date=updated,
-                    venue="arXiv",
-                    year=int(published[:4]) if published else None,
-                    arxiv_id=arxiv_id,
-                    pdf_url=pdf_url,
-                    topics=[],
-                    raw_source_payload={"entry": entry[:2000]},
+        for q in candidates:
+            params = {
+                "search_query": q,
+                "start": 0,
+                "max_results": limit,
+                "sortBy": "submittedDate",
+                "sortOrder": "descending",
+            }
+            text = httpx.get(url, params=params, timeout=30.0).text
+            items = text.split("<entry>")[1:]
+            out = []
+            for entry in items:
+                arxiv_id = _between(entry, "<id>", "</id>").split("/")[-1]
+                title = _clean(_between(entry, "<title>", "</title>"))
+                abstract = _clean(_between(entry, "<summary>", "</summary>"))
+                published = _between(entry, "<published>", "</published>")[:10] or None
+                updated = _between(entry, "<updated>", "</updated>")[:10] or published
+                authors = [_clean(v) for v in _all_between(entry, "<name>", "</name>")]
+                pdf_url = _find_pdf_url(entry, arxiv_id)
+                out.append(
+                    PaperMetadata(
+                        paper_id=f"arxiv:{arxiv_id}",
+                        source=self.name,
+                        source_url=f"https://arxiv.org/abs/{arxiv_id}",
+                        title=title,
+                        abstract=abstract,
+                        authors=authors,
+                        published_date=published,
+                        updated_date=updated,
+                        venue="arXiv",
+                        year=int(published[:4]) if published else None,
+                        arxiv_id=arxiv_id,
+                        pdf_url=pdf_url,
+                        topics=[],
+                        raw_source_payload={"entry": entry[:2000]},
+                    )
                 )
-            )
+            if out:
+                return out
         return out
 
 
@@ -90,7 +101,10 @@ class OpenAlexConnector(PaperSourceConnector):
         }
         if filter_parts:
             params["filter"] = ",".join(filter_parts)
-        data = httpx.get("https://api.openalex.org/works", params=params, timeout=30.0).json()
+        mailto = os.getenv("OPENALEX_MAILTO")
+        if mailto:
+            params["mailto"] = mailto
+        data = _get_json_dict("https://api.openalex.org/works", params=params)
         out: list[PaperMetadata] = []
         for item in data.get("results", []):
             openalex_id = str(item.get("id", "")).split("/")[-1] or None
@@ -131,9 +145,13 @@ class SemanticScholarConnector(PaperSourceConnector):
             "paperId,title,abstract,authors,year,venue,url,externalIds,openAccessPdf,citationCount,referenceCount,influentialCitationCount,fieldsOfStudy,publicationDate"
         ]
         url = "https://api.semanticscholar.org/graph/v1/paper/search"
-        params = {"query": query, "limit": limit, "fields": req_fields[0]}
-        headers = {}
-        data = httpx.get(url, params=params, headers=headers, timeout=30.0).json()
+        candidates = _semantic_scholar_query_candidates(query)
+        data = {}
+        for q in candidates:
+            params = {"query": q, "limit": limit, "fields": req_fields[0]}
+            data = _get_json_dict(url, params=params)
+            if data.get("data"):
+                break
         out: list[PaperMetadata] = []
         for item in data.get("data", []):
             ext = item.get("externalIds") or {}
@@ -197,3 +215,35 @@ def _openalex_abstract(index: dict[str, list[int]] | None) -> str | None:
         for p in positions:
             inv[p] = word
     return " ".join(inv[p] for p in sorted(inv))
+
+
+def _get_json_dict(url: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    response = httpx.get(url, params=params, headers=DEFAULT_HTTP_HEADERS, timeout=30.0)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected JSON object from {url}, got {type(payload).__name__}")
+    return payload
+
+
+def _arxiv_query_candidates(raw: str) -> list[str]:
+    q = raw.strip()
+    if not q:
+        return ["cat:cs.CL"]
+    terms = [t.strip() for t in re.split(r"\bOR\b", q, flags=re.IGNORECASE) if t.strip()]
+    candidates = [q]
+    if terms:
+        candidates.append(" OR ".join(f'all:\"{t}\"' for t in terms))
+        candidates.append("all:" + " ".join(terms))
+        candidates.append(" OR ".join(f"ti:{t}" for t in terms))
+    candidates.append("cat:cs.IR OR cat:cs.CL")
+    return list(dict.fromkeys(candidates))
+
+
+def _semantic_scholar_query_candidates(raw: str) -> list[str]:
+    q = raw.strip()
+    if not q:
+        return [q]
+    relaxed = re.sub(r"\b(AND|OR|NOT)\b", " ", q, flags=re.IGNORECASE)
+    relaxed = " ".join(relaxed.split())
+    return list(dict.fromkeys([q, relaxed]))
