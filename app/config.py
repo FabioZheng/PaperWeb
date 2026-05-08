@@ -57,6 +57,7 @@ class StorageConfig:
     usage_db_path: str = "data/llm_usage.sqlite"
 
 
+@dataclass(frozen=True)
 class AppConfig:
     llm: LLMConfig
     ingestion: IngestionConfig = IngestionConfig()
