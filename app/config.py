@@ -52,9 +52,15 @@ class IngestionConfig:
 
 
 @dataclass(frozen=True)
+class StorageConfig:
+    db_path: str = "data/paperweb.db"
+    usage_db_path: str = "data/llm_usage.sqlite"
+
+
 class AppConfig:
     llm: LLMConfig
     ingestion: IngestionConfig = IngestionConfig()
+    storage: StorageConfig = StorageConfig()
 
 
 ROLE_DEFAULTS = {
@@ -94,6 +100,7 @@ def load_config(path: str | None = None) -> AppConfig:
 
     cl = llm_data.get("cost_limits", {})
     ingest = data.get("ingestion", {})
+    storage = data.get("storage", {})
     return AppConfig(
         llm=LLMConfig(
             roles=roles,
@@ -112,6 +119,10 @@ def load_config(path: str | None = None) -> AppConfig:
             research_field=str(ingest.get("research_field", "nlp")),
             paper_type=str(ingest.get("paper_type", "recent")),
             search_query=ingest.get("search_query"),
+        ),
+        storage=StorageConfig(
+            db_path=str(storage.get("db_path", "data/paperweb.db")),
+            usage_db_path=str(storage.get("usage_db_path", "data/llm_usage.sqlite")),
         ),
     )
 
