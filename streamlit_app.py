@@ -59,8 +59,10 @@ for i, role in enumerate(["router", "extractor", "generator", "topic_extractor",
 
 st.subheader("Pipeline runner")
 with st.form("pipeline"):
-    source = st.selectbox("source", ["mock", "openreview", "aclcvf", "arxiv", "semantic_scholar", "openalex"])
-    search_query = st.text_input("query/search string", value=cfg.ingestion.search_query or "")
+    pipeline_mode = st.radio("pipeline mode", ["crawler pipeline", "multi-source discovery"], horizontal=True)
+    source = st.selectbox("crawler source", ["mock", "openreview", "aclcvf"])
+    discovery_sources = st.multiselect("discovery sources", ["arxiv", "semantic_scholar", "openalex"], default=["arxiv", "semantic_scholar"])
+    search_query = st.text_input("query/search string", value=cfg.ingestion.search_query or "information retrieval OR dense retrieval OR neural IR")
     limit = st.number_input("limit", min_value=1, max_value=50, value=cfg.ingestion.limit)
     field = st.text_input("research field", value=cfg.ingestion.research_field)
     paper_type = st.text_input("paper type", value=cfg.ingestion.paper_type)
@@ -85,8 +87,12 @@ if submitted:
         if dry_run:
             st.warning("Dry run selected; no writes executed.")
         else:
-            if source in {"arxiv", "semantic_scholar", "openalex"} and search_query:
-                summary = run_multi_source_ingest(search_query, [source], int(limit), db_path=runtime.db_path)
+            if pipeline_mode == "multi-source discovery":
+                if not search_query.strip():
+                    raise ValueError("Query is required for multi-source discovery mode.")
+                if not discovery_sources:
+                    raise ValueError("Select at least one discovery source.")
+                summary = run_multi_source_ingest(search_query, discovery_sources, int(limit), db_path=runtime.db_path)
                 st.json(summary)
             else:
                 run_ingest(source=source, limit=int(limit), research_field=field, paper_type=paper_type, search_query=search_query or None, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, extraction_enabled=extraction_enabled, topic_inference_enabled=topic_inference_enabled, semantic_summary_enabled=semantic_summary_enabled, on_event=on_event)
