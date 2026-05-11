@@ -67,7 +67,7 @@ class OpenAICompatibleProvider(LLMProvider):
         prompt, truncated = self._budget_prompt(prompt)
         if truncated:
             print(f"[llm:{self.role}] prompt truncated to role budget")
-        r = self.client.chat.completions.create(model=self.model, temperature=self.role_cfg.temperature, response_format={"type": "json_object"}, max_tokens=self.role_cfg.max_output_tokens, messages=[{"role": "user", "content": prompt}])
+        r = self.client.chat.completions.create(model=self.model, temperature=self.role_cfg.temperature, response_format={"type": "json_object"}, max_completion_tokens=self.role_cfg.max_output_tokens, messages=[{"role": "user", "content": prompt}])
         text = r.choices[0].message.content or "{}"
         u = getattr(r, "usage", None)
         record_llm_usage(role=self.role, provider=self.provider_name, model=self.model, input_tokens=getattr(u, "prompt_tokens", None) or estimate_tokens(prompt), output_tokens=getattr(u, "completion_tokens", None) or estimate_tokens(text), source_module="llm_provider", status="success")
@@ -77,7 +77,7 @@ class OpenAICompatibleProvider(LLMProvider):
         prompt, truncated = self._budget_prompt(prompt)
         if truncated:
             print(f"[llm:{self.role}] prompt truncated to role budget")
-        r = self.client.chat.completions.create(model=self.model, temperature=self.role_cfg.temperature, max_tokens=self.role_cfg.max_output_tokens, messages=[{"role": "user", "content": prompt}])
+        r = self.client.chat.completions.create(model=self.model, temperature=self.role_cfg.temperature, max_completion_tokens=self.role_cfg.max_output_tokens, messages=[{"role": "user", "content": prompt}])
         text = (r.choices[0].message.content or "").strip()
         u = getattr(r, "usage", None)
         record_llm_usage(role=self.role, provider=self.provider_name, model=self.model, input_tokens=getattr(u, "prompt_tokens", None) or estimate_tokens(prompt), output_tokens=getattr(u, "completion_tokens", None) or estimate_tokens(text), source_module="llm_provider", status="success")
