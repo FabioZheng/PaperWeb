@@ -83,6 +83,11 @@ if agents_cfg.enabled:
     st.subheader("Agent lineup")
     st.json({"default_model_role": agents_cfg.default_model_role, "research": agents_cfg.research.model_role, "evidence": agents_cfg.evidence.model_role, "report": agents_cfg.report.model_role})
 
+
+if agents_cfg.enabled:
+    st.subheader("Agent lineup")
+    st.json({"default_model_role": agents_cfg.default_model_role, "research": agents_cfg.research.model_role, "evidence": agents_cfg.evidence.model_role, "report": agents_cfg.report.model_role})
+
 st.subheader("Pipeline runner")
 with st.form("pipeline"):
     pipeline_mode = st.radio("pipeline mode", ["crawler pipeline", "multi-source discovery"], horizontal=True)
