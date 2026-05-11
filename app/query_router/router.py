@@ -12,7 +12,7 @@ class QueryRouter:
     def __init__(self, use_llm: bool = True):
         self.use_llm = use_llm
         self.provider = build_provider("router")
-        self.template = Path("app/prompts/query_routing.txt").read_text()
+        self.template = Path("app/prompts/query_routing.txt").read_text(encoding="utf-8")
 
     def route(self, query: str) -> RouterPlan:
         rule_intent = "comparison" if "compare" in query.lower() else "qa"

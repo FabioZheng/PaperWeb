@@ -30,7 +30,7 @@ class PDFParser:
             raise FileNotFoundError(f"Missing PDF for paper {paper.paper_id}: {paper.pdf_path}")
 
         if pdf_path.suffix.lower() == ".txt":
-            text = pdf_path.read_text(errors="ignore")
+            text = pdf_path.read_text(encoding="utf-8", errors="ignore")
             return [
                 ParsedChunk(
                     chunk_id=f"{paper.paper_id}_c0",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.cli import print_cli_banner
 import argparse
+import sys
 
 from app.config import load_config
 from app.generation.generator import GenerationService
@@ -34,6 +35,10 @@ def run_query(query: str, *, db_path: str = "data/paperweb.db", usage_db_path: s
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
     print_cli_banner()
     cfg = load_config()
     ap = argparse.ArgumentParser()

@@ -54,7 +54,7 @@ def build_topic_taxonomy(
 
 def save_taxonomy_json(taxonomy: list[TopicBucket], path: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        json.dump([asdict(t) for t in taxonomy], f, indent=2)
+        json.dump([asdict(t) for t in taxonomy], f, indent=2, ensure_ascii=False)
 
 
 def load_taxonomy_json(path: str) -> list[TopicBucket]:

@@ -56,4 +56,4 @@ def assign_papers_to_taxonomy(
 
 def save_assignments_json(assignments: list[TopicAssignment], path: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        json.dump([asdict(a) for a in assignments], f, indent=2)
+        json.dump([asdict(a) for a in assignments], f, indent=2, ensure_ascii=False)
