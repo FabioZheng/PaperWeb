@@ -20,7 +20,7 @@ from app.models import (
 class ExtractionService:
     def __init__(self):
         self.provider = build_provider("extractor")
-        self.template = Path("app/prompts/paper_extraction.txt").read_text()
+        self.template = Path("app/prompts/paper_extraction.txt").read_text(encoding="utf-8")
 
     def extract(self, paper: PaperMetadata, chunks: list[ParsedChunk]) -> ExtractedMemory:
         payload = {"paper": paper.model_dump(), "chunks": [c.model_dump() for c in chunks]}

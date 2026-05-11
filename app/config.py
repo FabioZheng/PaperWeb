@@ -77,7 +77,7 @@ def _load_raw(path: str | None = None) -> dict:
     p = Path(path or os.getenv("PAPERWEB_CONFIG", "config/paperweb.toml"))
     if not p.exists():
         return {}
-    return tomllib.loads(p.read_text())
+    return tomllib.loads(p.read_text(encoding="utf-8"))
 
 
 def load_config(path: str | None = None) -> AppConfig:

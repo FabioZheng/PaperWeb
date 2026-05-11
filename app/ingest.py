@@ -6,6 +6,7 @@ from app.cli import print_cli_banner
 import argparse
 import logging
 import json
+import sys
 from collections.abc import Callable
 
 from app.config import load_config
@@ -149,6 +150,10 @@ def run_ingest(source: str, limit: int, research_field: str = "nlp", paper_type:
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
     print_cli_banner()
     cfg = load_config()
     ap = argparse.ArgumentParser()
