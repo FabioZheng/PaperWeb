@@ -8,6 +8,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from app.agents.config import parse_agents_config
+from app.agents.paperweb_agent import PaperWebResearchAgent
 from app.config import load_config
 from app.agents.config import parse_agents_config
 from app.agents.paperweb_agent import PaperWebResearchAgent
@@ -43,21 +45,18 @@ def read_graph_structure(db_path: str) -> dict:
         edges = pd.read_sql_query("SELECT edge_id, source_id, target_id, relation_type FROM graph_edges", con)
     finally:
         con.close()
-    degree = {}
+    degree: dict[str, int] = {}
     for _, r in edges.iterrows():
         degree[r["source_id"]] = degree.get(r["source_id"], 0) + 1
         degree[r["target_id"]] = degree.get(r["target_id"], 0) + 1
-    top_nodes = sorted(degree.items(), key=lambda x: x[1], reverse=True)[:15]
     return {
         "num_nodes": int(len(nodes)),
         "num_edges": int(len(edges)),
         "relation_types": edges["relation_type"].value_counts().to_dict() if not edges.empty else {},
-        "top_degree_nodes": top_nodes,
+        "top_degree_nodes": sorted(degree.items(), key=lambda x: x[1], reverse=True)[:15],
         "nodes": nodes,
         "edges": edges,
     }
-
-
 
 
 def usage_counts_by_role(usage_db_path: str) -> dict[str, int]:
@@ -71,22 +70,55 @@ def usage_counts_by_role(usage_db_path: str) -> dict[str, int]:
     return {r[0]: int(r[1]) for r in rows}
 
 
-def render_model_lineup(cfg, active_roles: set[str] | None = None) -> None:
+def render_model_lineup(active_roles: set[str] | None = None) -> None:
     active_roles = active_roles or set()
-    if st.session_state.get("active_roles_until", 0) and time.time() > st.session_state.get("active_roles_until", 0):
+    st.subheader("Model lineup")
+    cols = st.columns(5)
+    roles = ["router", "extractor", "generator", "topic_extractor", "semantic_summarizer"]
+    for i, role in enumerate(roles):
+        rcfg = cfg.llm.roles[role]
+        label = f"{rcfg.provider}:{rcfg.model}"
+        if role in active_roles:
+            cols[i].markdown(
+                f"<div style='padding:8px;border:2px solid #22c55e;border-radius:8px;background:#ecfdf5'><b>{role}</b><br/>{label}<br/><span style='color:#15803d'>● running</span></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            cols[i].markdown(
+                f"<div style='padding:8px;border:1px solid #d1d5db;border-radius:8px'><b>{role}</b><br/>{label}</div>",
+                unsafe_allow_html=True,
+            )
+
+
+st.title("PaperWeb Streamlit UI")
+with st.sidebar:
+    st.header("Database / Collection")
+    options = list_dbs()
+    default_db = str(DB_DIR / "paperweb.db")
+    if default_db not in options:
+        options = [default_db] + options
+    selected = st.selectbox("Existing DB", options=options, index=0)
+    new_name = st.text_input("Create new DB", value="agentic_ir")
+    if st.button("Create and switch"):
+        selected = str(DB_DIR / f"{new_name}.db")
+        Path(selected).touch()
+    st.session_state["active_db"] = selected
+    st.success(f"Active DB: {selected}")
+
+
+if st.session_state.get("active_roles_until", 0) and time.time() > st.session_state.get("active_roles_until", 0):
     st.session_state["active_roles"] = []
     st.session_state["active_roles_until"] = 0
-active_roles = set(st.session_state.get("active_roles", []))
-render_model_lineup(cfg, active_roles=active_roles)
+render_model_lineup(set(st.session_state.get("active_roles", [])))
 
 if agents_cfg.enabled:
     st.subheader("Agent lineup")
-    st.json({"default_model_role": agents_cfg.default_model_role, "research": agents_cfg.research.model_role, "evidence": agents_cfg.evidence.model_role, "report": agents_cfg.report.model_role})
-
-
-if agents_cfg.enabled:
-    st.subheader("Agent lineup")
-    st.json({"default_model_role": agents_cfg.default_model_role, "research": agents_cfg.research.model_role, "evidence": agents_cfg.evidence.model_role, "report": agents_cfg.report.model_role})
+    st.json({
+        "default_model_role": agents_cfg.default_model_role,
+        "research": agents_cfg.research.model_role,
+        "evidence": agents_cfg.evidence.model_role,
+        "report": agents_cfg.report.model_role,
+    })
 
 st.subheader("Pipeline runner")
 with st.form("pipeline"):
@@ -111,40 +143,36 @@ if submitted:
     def on_event(msg: str) -> None:
         logs.append(msg)
         status.info(msg)
-        denom = max(1, int(limit))
-        progress.progress(min(1.0, len(logs) / denom))
+        progress.progress(min(1.0, len(logs) / max(1, int(limit))))
 
     pre_usage = usage_counts_by_role(runtime.usage_db_path)
     st.session_state["active_roles"] = []
     try:
         if dry_run:
             st.warning("Dry run selected; no writes executed.")
+        elif pipeline_mode == "multi-source discovery":
+            if not search_query.strip():
+                raise ValueError("Query is required for multi-source discovery mode.")
+            if not discovery_sources:
+                raise ValueError("Select at least one discovery source.")
+            st.json(run_multi_source_ingest(search_query, discovery_sources, int(limit), db_path=runtime.db_path))
         else:
-            if pipeline_mode == "multi-source discovery":
-                if not search_query.strip():
-                    raise ValueError("Query is required for multi-source discovery mode.")
-                if not discovery_sources:
-                    raise ValueError("Select at least one discovery source.")
-                summary = run_multi_source_ingest(search_query, discovery_sources, int(limit), db_path=runtime.db_path)
-                st.json(summary)
-            else:
-                run_ingest(source=source, limit=int(limit), research_field=field, paper_type=paper_type, search_query=search_query or None, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, extraction_enabled=extraction_enabled, topic_inference_enabled=topic_inference_enabled, semantic_summary_enabled=semantic_summary_enabled, on_event=on_event)
-            progress.progress(1.0)
-            post_usage = usage_counts_by_role(runtime.usage_db_path)
-            active = {r for r, n in post_usage.items() if n > pre_usage.get(r, 0)}
-            st.session_state["active_roles"] = sorted(active)
-            st.session_state["active_roles_until"] = time.time() + 5
-            st.success("Pipeline complete")
+            run_ingest(source=source, limit=int(limit), research_field=field, paper_type=paper_type, search_query=search_query or None, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, extraction_enabled=extraction_enabled, topic_inference_enabled=topic_inference_enabled, semantic_summary_enabled=semantic_summary_enabled, on_event=on_event)
+        progress.progress(1.0)
+        post_usage = usage_counts_by_role(runtime.usage_db_path)
+        active = {r for r, n in post_usage.items() if n > pre_usage.get(r, 0)}
+        st.session_state["active_roles"] = sorted(active)
+        st.session_state["active_roles_until"] = time.time() + 5
+        st.success("Pipeline complete")
     except Exception as exc:
         st.error(f"Pipeline failed: {exc}")
     st.text_area("Activity logs", value="\n".join(logs), height=220)
 
 st.subheader("Usage / cost")
-usage = get_usage_summary(runtime.usage_db_path)
-st.json(usage)
+st.json(get_usage_summary(runtime.usage_db_path))
 
 st.subheader("Query knowledge base")
-query_db = st.selectbox("Query DB", options=list_dbs() or [runtime.db_path], index=0, help="Choose the active collection DB for query execution.")
+query_db = st.selectbox("Query DB", options=list_dbs() or [runtime.db_path], index=0)
 q = st.text_input("Ask a question")
 if st.button("Run query") and q:
     query_runtime = build_runtime_paths(query_db, cfg.storage.usage_db_path)
@@ -193,8 +221,7 @@ for tab, name in zip(tabs, ["papers", "chunks", "extracted", "graph_nodes", "gra
             if name == "papers" and not df.empty:
                 pid = st.selectbox("Paper details", options=df["paper_id"].tolist(), key="paper_select")
                 row = df[df["paper_id"] == pid].iloc[0]
-                payload = json.loads(row["payload"])
-                st.json(payload)
+                st.json(json.loads(row["payload"]))
         except Exception as exc:
             st.info(f"Table not available yet: {exc}")
 
@@ -203,8 +230,7 @@ if agents_cfg.enabled:
     aq = st.text_input("Agent research query")
     if st.button("Run agent research") and aq:
         pre_usage = usage_counts_by_role(runtime.usage_db_path)
-        agent = PaperWebResearchAgent(model_role=agents_cfg.research.model_role, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, max_tool_calls=agents_cfg.research.max_tool_calls, trace_enabled=agents_cfg.trace_enabled)
-        out = agent.run(aq, route="agents_streamlit")
+        out = PaperWebResearchAgent(model_role=agents_cfg.research.model_role, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, max_tool_calls=agents_cfg.research.max_tool_calls, trace_enabled=agents_cfg.trace_enabled).run(aq, route="agents_streamlit")
         post_usage = usage_counts_by_role(runtime.usage_db_path)
         active = {r for r, n in post_usage.items() if n > pre_usage.get(r, 0)}
         st.session_state["active_roles"] = sorted(active)
