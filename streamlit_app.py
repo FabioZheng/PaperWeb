@@ -11,6 +11,8 @@ import streamlit as st
 from app.agents.config import parse_agents_config
 from app.agents.paperweb_agent import PaperWebResearchAgent
 from app.config import load_config
+from app.agents.config import parse_agents_config
+from app.agents.paperweb_agent import PaperWebResearchAgent
 from app.ingest import run_ingest, run_multi_source_ingest
 from app.llm.usage_tracker import get_usage_summary
 from app.query import run_query
