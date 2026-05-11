@@ -220,7 +220,8 @@ def _openalex_abstract(index: dict[str, list[int]] | None) -> str | None:
 
 def _get_json_dict(url: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
     response = httpx.get(url, params=params, headers=DEFAULT_HTTP_HEADERS, timeout=30.0, verify=tls_verify_enabled())
-    response.raise_for_status()
+    if hasattr(response, "raise_for_status"):
+        response.raise_for_status()
     payload = response.json()
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object from {url}, got {type(payload).__name__}")

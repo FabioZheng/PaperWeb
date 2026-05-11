@@ -17,7 +17,7 @@ def main() -> None:
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8")
     print_cli_banner()
-    papers = [PaperMetadata.model_validate(p) for p in json.loads(open("fixtures/papers/mock_papers.json", encoding="utf-8").read())]
+    papers = [PaperMetadata.model_validate(p) for p in json.loads(open("fixtures/papers/mock_papers.json", encoding="utf-8", errors="replace").read())]
     notes = TopicConsolidator().consolidate(papers)
     obsidian = ObsidianService()
     for n in notes:

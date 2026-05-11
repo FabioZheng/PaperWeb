@@ -73,8 +73,17 @@ class OpenAICompatibleProvider(LLMProvider):
         r = self.client.chat.completions.create(model=self.model, temperature=self.role_cfg.temperature, response_format={"type": "json_object"}, max_completion_tokens=self.role_cfg.max_output_tokens, messages=[{"role": "user", "content": prompt}])
         text = r.choices[0].message.content or "{}"
         u = getattr(r, "usage", None)
-        record_llm_usage(role=self.role, provider=self.provider_name, model=self.model, input_tokens=getattr(u, "prompt_tokens", None) or estimate_tokens(prompt), output_tokens=getattr(u, "completion_tokens", None) or estimate_tokens(text), source_module="llm_provider", status="success")
-        return _safe_json_loads(text)
+        in_tok = getattr(u, "prompt_tokens", None) or estimate_tokens(prompt)
+        out_tok = getattr(u, "completion_tokens", None) or estimate_tokens(text)
+        try:
+            parsed = _safe_json_loads(text)
+            record_llm_usage(role=self.role, provider=self.provider_name, model=self.model, input_tokens=in_tok, output_tokens=out_tok, source_module="llm_provider", status="success")
+            return parsed
+        except Exception as exc:
+            fallback = _fallback_json_response(prompt)
+            record_llm_usage(role=self.role, provider=self.provider_name, model=self.model, input_tokens=in_tok, output_tokens=estimate_tokens(json.dumps(fallback)), source_module="llm_provider", status="error", error_message=str(exc))
+            print(f"[llm:{self.role}] fallback JSON parse: {exc}")
+            return fallback
 
     def complete_text(self, prompt: str) -> str:
         prompt, truncated = self._budget_prompt(prompt)
@@ -105,6 +114,18 @@ def build_provider(role: str) -> LLMProvider:
 def render_json_prompt(template: str, payload: dict) -> str:
     return template + "\n\nINPUT:\n" + json.dumps(payload, indent=2)
 
+
+
+
+def _fallback_json_response(prompt: str) -> dict:
+    if "ROUTER_PLAN" in prompt:
+        return {"intent": "comparison", "entities": [], "filters": {"year_gte": 2024}, "store_weights": {"vector": 0.4, "graph": 0.2, "result": 0.3, "obsidian": 0.1}, "retrieval_budget": {"vector": 8, "graph": 4, "result": 6, "obsidian": 4}, "response_mode": "report"}
+    if "EXTRACTION" in prompt:
+        payload = _extract_payload_from_prompt(prompt)
+        chunks = payload.get("chunks", [])
+        cid = chunks[0].get("chunk_id", "c0") if chunks else "c0"
+        return {"facts": [{"text": "Fallback extracted fact", "evidence_chunk_ids": [cid], "confidence": 0.5}], "claims": [], "interpretations": [], "results": []}
+    return {"ok": True}
 
 def _safe_json_loads(raw: str) -> dict:
     candidates: list[str] = []

@@ -32,19 +32,23 @@ def run_query(query: str, *, db_path: str = "data/paperweb.db", usage_db_path: s
         try:
             agent_out = PaperWebResearchAgent(model_role=role, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, max_tool_calls=acfg.research.max_tool_calls, trace_enabled=acfg.trace_enabled).run(query, route="agents")
             return {"route": "agents", "plan": {"intent": "multi_step_research"}, "answer": {"query": query, "answer": agent_out["answer"], "citations": agent_out.get("evidence_ids", []), "mode": "report"}, "evidence_items": [], "tool_calls": agent_out.get("tool_calls", [])}
-        except Exception:
+        except Exception as exc:
             route = "pipeline"
+            fallback_reason = str(exc)
     plan = router.route(query)
     engine = RetrievalEngine(VectorStore.from_file(runtime.vector_store_path), GraphStore(path=runtime.db_path), ResultStore.from_file(runtime.result_store_path))
     groups = engine.run(query, plan)
     pack = fuse_and_rerank(query, plan, groups)
     answer = GenerationService().generate(pack)
-    return {
+    out = {
         "route": "pipeline",
         "plan": plan.model_dump(),
         "answer": answer.model_dump(),
         "evidence_items": [i.model_dump() for i in pack.items],
     }
+    if "fallback_reason" in locals():
+        out["agent_fallback_reason"] = fallback_reason
+    return out
 
 
 def main() -> None:

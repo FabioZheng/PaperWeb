@@ -32,7 +32,7 @@ class ObsidianService:
         for note in self.vault.glob("*.md"):
             vector_store.add(
                 item_id=f"obsidian_{note.stem}",
-                text=note.read_text(encoding="utf-8"),
+                text=note.read_text(encoding="utf-8", errors="replace"),
                 metadata={"path": str(note)},
                 curated=True,
             )
