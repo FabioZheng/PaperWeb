@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from app.models import PaperMetadata
+from app.net import tls_verify_enabled
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class ArxivConnector(PaperSourceConnector):
                 "sortBy": "submittedDate",
                 "sortOrder": "descending",
             }
-            text = httpx.get(url, params=params, timeout=30.0).text
+            text = httpx.get(url, params=params, timeout=30.0, verify=tls_verify_enabled()).text
             items = text.split("<entry>")[1:]
             out = []
             for entry in items:
@@ -218,8 +219,9 @@ def _openalex_abstract(index: dict[str, list[int]] | None) -> str | None:
 
 
 def _get_json_dict(url: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
-    response = httpx.get(url, params=params, headers=DEFAULT_HTTP_HEADERS, timeout=30.0)
-    response.raise_for_status()
+    response = httpx.get(url, params=params, headers=DEFAULT_HTTP_HEADERS, timeout=30.0, verify=tls_verify_enabled())
+    if hasattr(response, "raise_for_status"):
+        response.raise_for_status()
     payload = response.json()
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object from {url}, got {type(payload).__name__}")

@@ -18,13 +18,13 @@ class ObsidianService:
         tags = " ".join(f"#{t.replace(' ', '_')}" for t in paper.topics)
         path.write_text(
             f"# {paper.title}\n\n- Venue: {paper.venue} ({paper.year})\n- Authors: {', '.join(paper.authors)}\n- Tags: {tags}\n\n## Summary\n{summary}\n"
-        )
+        , encoding="utf-8")
         return path
 
     def write_topic_note(self, topic: TopicNote) -> Path:
         path = self.vault / f"topic_{topic.topic_id}.md"
         links = "\n".join([f"- [[paper_{pid}]]" for pid in topic.paper_ids])
-        path.write_text(f"# Topic: {topic.topic_name}\n\n{topic.summary}\n\n## Papers\n{links}\n")
+        path.write_text(f"# Topic: {topic.topic_name}\n\n{topic.summary}\n\n## Papers\n{links}\n", encoding="utf-8")
         return path
 
     def reindex_notes(self, vector_store: VectorStore) -> int:
@@ -32,7 +32,7 @@ class ObsidianService:
         for note in self.vault.glob("*.md"):
             vector_store.add(
                 item_id=f"obsidian_{note.stem}",
-                text=note.read_text(),
+                text=note.read_text(encoding="utf-8", errors="replace"),
                 metadata={"path": str(note)},
                 curated=True,
             )
