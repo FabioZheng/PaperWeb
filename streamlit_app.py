@@ -11,6 +11,8 @@ import streamlit as st
 from app.agents.config import parse_agents_config
 from app.agents.paperweb_agent import PaperWebResearchAgent
 from app.config import load_config
+from app.agents.config import parse_agents_config
+from app.agents.paperweb_agent import PaperWebResearchAgent
 from app.ingest import run_ingest, run_multi_source_ingest
 from app.llm.usage_tracker import get_usage_summary
 from app.query import run_query
@@ -103,8 +105,6 @@ with st.sidebar:
     st.session_state["active_db"] = selected
     st.success(f"Active DB: {selected}")
 
-active_db = st.session_state.get("active_db", str(DB_DIR / "paperweb.db"))
-runtime = build_runtime_paths(active_db, cfg.storage.usage_db_path)
 
 if st.session_state.get("active_roles_until", 0) and time.time() > st.session_state.get("active_roles_until", 0):
     st.session_state["active_roles"] = []
