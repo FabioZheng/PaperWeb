@@ -5,9 +5,11 @@ import json, os
 from abc import ABC, abstractmethod
 from typing import Any
 from openai import OpenAI
+import httpx
 
 from app.config import VALID_LLM_ROLES, get_llm_role_config, load_config
 from app.llm.usage_tracker import estimate_tokens, record_llm_usage
+from app.net import tls_verify_enabled
 
 
 class LLMProvider(ABC):
@@ -61,6 +63,7 @@ class OpenAICompatibleProvider(LLMProvider):
         kwargs: dict[str, Any] = {"api_key": key}
         if self.role_cfg.base_url:
             kwargs["base_url"] = self.role_cfg.base_url
+        kwargs["http_client"] = httpx.Client(verify=tls_verify_enabled())
         self.client = OpenAI(**kwargs)
 
     def complete_json(self, prompt: str) -> dict:
@@ -104,14 +107,55 @@ def render_json_prompt(template: str, payload: dict) -> str:
 
 
 def _safe_json_loads(raw: str) -> dict:
+    candidates: list[str] = []
     try:
         x = json.loads(raw)
-        if isinstance(x, dict): return x
+        if isinstance(x, dict):
+            return x
     except json.JSONDecodeError:
         pass
+
     s, e = raw.find("{"), raw.rfind("}")
     if s != -1 and e != -1 and e > s:
-        return json.loads(raw[s:e+1])
+        candidates.append(raw[s:e+1])
+
+    # Try balanced-object extraction in case extra prose/truncated tails are present.
+    start = raw.find("{")
+    if start != -1:
+        depth = 0
+        in_str = False
+        esc = False
+        end = -1
+        for i, ch in enumerate(raw[start:], start=start):
+            if esc:
+                esc = False
+                continue
+            if ch == "\\":
+                esc = True
+                continue
+            if ch == '"':
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        if end != -1:
+            candidates.append(raw[start:end+1])
+
+    for c in candidates:
+        try:
+            x = json.loads(c)
+            if isinstance(x, dict):
+                return x
+        except json.JSONDecodeError:
+            continue
+
     raise ValueError("Model did not return valid JSON object")
 
 

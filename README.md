@@ -430,3 +430,43 @@ streamlit run streamlit_app.py
 - Query panel displays answer text, citations, router plan, and retrieved evidence rows.
 - Dataset explorer lets you browse papers, chunks, extracted payloads, graph nodes/edges, and semantic payloads.
 - Each table tab supports search and export to JSON/CSV.
+
+## Optional Agents SDK Layer
+
+PaperWeb remains a **research-memory pipeline** (ingestion, parsing, extraction, storage, retrieval, fusion, grounded generation). The Agents SDK layer is optional and used only for high-level multi-step workflows.
+
+### Used for
+- Complex research Q&A over memory
+- Research-direction discovery
+- Literature review/report generation
+- Field/lab intelligence exploration
+- Multi-paper evidence comparison
+
+### Not used for
+- Ingestion/source connectors
+- PDF parsing/chunking
+- Normalization/dedup/freshness/versioning
+- Deterministic DB writes
+- Single-paper simple extraction/topic labeling
+- Basic grounded Q&A unless router selects multi-step orchestration
+
+### Routing behavior
+`QueryRouter.select_execution_route()` chooses:
+- `pipeline` for simple grounded Q&A
+- `agents` for planning/comparison/report-style multi-step queries
+- if `[agents].enabled=false` or agent errors, fallback to normal pipeline
+
+### Tool mapping
+Agent tools wrap existing stores/functions (SQL metadata, vector store, graph neighbors, semantic facts, chunks/facts, topic stats, field intelligence, grounded report).
+
+### Enablement
+Configure in `config/paperweb.toml` under `[agents]` and sub-sections.
+
+### CLI
+- `python -m app.agents.cli ask "..."`
+- `python -m app.agents.cli report --topic "..."`
+- `python -m app.agents.cli trace --last`
+
+### Tracing and usage
+- Agent traces are logged in `data/agent_traces.jsonl`
+- Token/cost usage is recorded in existing `data/llm_usage.sqlite`
