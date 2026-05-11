@@ -53,3 +53,25 @@ limit = 5
 research_field = "nlp"
 paper_type = "recent"
 search_query = ""
+
+[agents]
+enabled = false
+trace_enabled = true
+default_model_role = "generator"
+max_tool_calls = 8
+max_run_cost_usd = 1.00
+
+[agents.research]
+enabled = true
+model_role = "generator"
+max_tool_calls = 8
+
+[agents.evidence]
+enabled = true
+model_role = "extractor"
+max_tool_calls = 6
+
+[agents.report]
+enabled = true
+model_role = "generator"
+max_tool_calls = 5
