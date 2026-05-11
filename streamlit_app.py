@@ -70,6 +70,11 @@ def usage_counts_by_role(usage_db_path: str) -> dict[str, int]:
     return {r[0]: int(r[1]) for r in rows}
 
 
+def get_current_runtime():
+    db = st.session_state.get("active_db", cfg.storage.db_path)
+    return build_runtime_paths(db, cfg.storage.usage_db_path)
+
+
 def render_model_lineup(active_roles: set[str] | None = None) -> None:
     active_roles = active_roles or set()
     st.subheader("Model lineup")
@@ -105,6 +110,8 @@ with st.sidebar:
     st.session_state["active_db"] = selected
     st.success(f"Active DB: {selected}")
 
+active_db = st.session_state.get("active_db", str(DB_DIR / "paperweb.db"))
+runtime = get_current_runtime()
 
 if st.session_state.get("active_roles_until", 0) and time.time() > st.session_state.get("active_roles_until", 0):
     st.session_state["active_roles"] = []
@@ -168,6 +175,7 @@ if submitted:
         st.error(f"Pipeline failed: {exc}")
     st.text_area("Activity logs", value="\n".join(logs), height=220)
 
+runtime = get_current_runtime()
 st.subheader("Usage / cost")
 st.json(get_usage_summary(runtime.usage_db_path))
 
