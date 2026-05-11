@@ -62,6 +62,7 @@ class AppConfig:
     llm: LLMConfig
     ingestion: IngestionConfig = IngestionConfig()
     storage: StorageConfig = StorageConfig()
+    agents: dict = None
 
 
 ROLE_DEFAULTS = {
@@ -77,7 +78,7 @@ def _load_raw(path: str | None = None) -> dict:
     p = Path(path or os.getenv("PAPERWEB_CONFIG", "config/paperweb.toml"))
     if not p.exists():
         return {}
-    return tomllib.loads(p.read_text())
+    return tomllib.loads(p.read_text(encoding="utf-8"))
 
 
 def load_config(path: str | None = None) -> AppConfig:
@@ -125,6 +126,7 @@ def load_config(path: str | None = None) -> AppConfig:
             db_path=str(storage.get("db_path", "data/paperweb.db")),
             usage_db_path=str(storage.get("usage_db_path", "data/llm_usage.sqlite")),
         ),
+        agents=data.get("agents", {}),
     )
 
 

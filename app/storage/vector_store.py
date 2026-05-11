@@ -28,7 +28,7 @@ class VectorStore:
         p = Path(path)
         if not p.exists():
             return cls()
-        data = json.loads(p.read_text())
+        data = json.loads(p.read_text(encoding="utf-8"))
         store = cls(entries=data)
         for e in store.entries:
             e["tok"] = set(e.get("tok", []))
@@ -40,7 +40,7 @@ class VectorStore:
         serializable = []
         for e in self.entries:
             serializable.append({**e, "tok": sorted(list(e["tok"]))})
-        p.write_text(json.dumps(serializable, indent=2))
+        p.write_text(json.dumps(serializable, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def add(self, item_id: str, text: str, metadata: dict, curated: bool = False) -> None:
         self.entries.append({"item_id": item_id, "text": text, "tok": _tokenize(text), "metadata": metadata, "curated": curated})

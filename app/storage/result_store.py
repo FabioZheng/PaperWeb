@@ -18,13 +18,13 @@ class ResultStore:
         p = Path(path)
         if not p.exists():
             return cls()
-        data = json.loads(p.read_text())
+        data = json.loads(p.read_text(encoding="utf-8"))
         return cls(results=[ResultRecord.model_validate(r) for r in data])
 
     def save(self, path: str = "data/result_store.json") -> None:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps([r.model_dump() for r in self.results], indent=2))
+        p.write_text(json.dumps([r.model_dump() for r in self.results], indent=2, ensure_ascii=False), encoding="utf-8")
 
     def add_many(self, records: list[ResultRecord]) -> None:
         self.results.extend(records)

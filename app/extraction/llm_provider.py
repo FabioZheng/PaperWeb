@@ -5,9 +5,11 @@ import json, os
 from abc import ABC, abstractmethod
 from typing import Any
 from openai import OpenAI
+import httpx
 
 from app.config import VALID_LLM_ROLES, get_llm_role_config, load_config
 from app.llm.usage_tracker import estimate_tokens, record_llm_usage
+from app.net import tls_verify_enabled
 
 
 class LLMProvider(ABC):
@@ -61,6 +63,7 @@ class OpenAICompatibleProvider(LLMProvider):
         kwargs: dict[str, Any] = {"api_key": key}
         if self.role_cfg.base_url:
             kwargs["base_url"] = self.role_cfg.base_url
+        kwargs["http_client"] = httpx.Client(verify=tls_verify_enabled())
         self.client = OpenAI(**kwargs)
 
     def complete_json(self, prompt: str) -> dict:

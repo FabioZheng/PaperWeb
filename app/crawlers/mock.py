@@ -14,7 +14,7 @@ class MockFileCrawler(ConferenceCrawler):
         self.fixture_path = Path(fixture_path)
 
     def fetch_recent(self, limit: int) -> list[PaperMetadata]:
-        data = json.loads(self.fixture_path.read_text())
+        data = json.loads(self.fixture_path.read_text(encoding="utf-8"))
         return [PaperMetadata.model_validate(row) for row in data[:limit]]
 
 

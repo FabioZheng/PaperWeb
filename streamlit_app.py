@@ -8,6 +8,8 @@ import pandas as pd
 import streamlit as st
 
 from app.config import load_config
+from app.agents.config import parse_agents_config
+from app.agents.paperweb_agent import PaperWebResearchAgent
 from app.ingest import run_ingest, run_multi_source_ingest
 from app.llm.usage_tracker import get_usage_summary
 from app.query import run_query
@@ -16,6 +18,7 @@ from app.runtime import build_runtime_paths
 st.set_page_config(page_title="PaperWeb UI", layout="wide")
 
 cfg = load_config()
+agents_cfg = parse_agents_config(cfg, {"agents": cfg.agents or {}})
 DB_DIR = Path("data/dbs")
 DB_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -56,6 +59,11 @@ cols = st.columns(5)
 for i, role in enumerate(["router", "extractor", "generator", "topic_extractor", "semantic_summarizer"]):
     rcfg = cfg.llm.roles[role]
     cols[i].metric(role, f"{rcfg.provider}:{rcfg.model}")
+
+
+if agents_cfg.enabled:
+    st.subheader("Agent lineup")
+    st.json({"default_model_role": agents_cfg.default_model_role, "research": agents_cfg.research.model_role, "evidence": agents_cfg.evidence.model_role, "report": agents_cfg.report.model_role})
 
 st.subheader("Pipeline runner")
 with st.form("pipeline"):
@@ -138,3 +146,15 @@ for tab, name in zip(tabs, ["papers", "chunks", "extracted", "graph_nodes", "gra
                 st.json(payload)
         except Exception as exc:
             st.info(f"Table not available yet: {exc}")
+
+if agents_cfg.enabled:
+    st.subheader("Agent Research")
+    aq = st.text_input("Agent research query")
+    if st.button("Run agent research") and aq:
+        agent = PaperWebResearchAgent(model_role=agents_cfg.research.model_role, db_path=runtime.db_path, usage_db_path=runtime.usage_db_path, max_tool_calls=agents_cfg.research.max_tool_calls, trace_enabled=agents_cfg.trace_enabled)
+        out = agent.run(aq, route="agents_streamlit")
+        st.write(f"Selected route: {out['route']}")
+        st.json(out.get("tool_calls", []))
+        st.json({"evidence_ids": out.get("evidence_ids", [])})
+        st.markdown("### Final grounded answer")
+        st.write(out["answer"])
