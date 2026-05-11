@@ -13,6 +13,7 @@ import httpx
 
 from app.crawlers.base import ConferenceCrawler
 from app.models import PaperMetadata
+from app.net import tls_verify_enabled
 
 ARXIV_ATOM_URL = "https://export.arxiv.org/api/query"
 ARXIV_NS = {"atom": "http://www.w3.org/2005/Atom"}
@@ -79,7 +80,7 @@ class OpenReviewRealCrawler(ConferenceCrawler):
         }
         query = "&".join(f"{k}={quote(v)}" for k, v in params.items())
         url = f"{ARXIV_ATOM_URL}?{query}"
-        with httpx.Client(timeout=self.timeout_s, follow_redirects=True) as client:
+        with httpx.Client(timeout=self.timeout_s, follow_redirects=True, verify=tls_verify_enabled()) as client:
             for attempt in range(4):
                 response = client.get(url, headers={"User-Agent": "paperweb/0.1 (+https://example.org)"})
                 if response.status_code != 429:
@@ -145,7 +146,7 @@ class OpenReviewRealCrawler(ConferenceCrawler):
         if pdf_path.exists() and pdf_path.stat().st_size > 0:
             return pdf_path
 
-        with httpx.Client(timeout=self.timeout_s, follow_redirects=True) as client:
+        with httpx.Client(timeout=self.timeout_s, follow_redirects=True, verify=tls_verify_enabled()) as client:
             response = client.get(pdf_url, headers={"User-Agent": "paperweb/0.1 (+https://example.org)"})
             response.raise_for_status()
             pdf_path.write_bytes(response.content)

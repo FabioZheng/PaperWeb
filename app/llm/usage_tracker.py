@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -58,7 +58,7 @@ def _cost(model: str, input_tokens: int, output_tokens: int) -> tuple[float, flo
 def record_llm_usage(role: str, provider: str, model: str, input_tokens: int, output_tokens: int, status: str = "success", source_module: str = "", script_name: str = "", paper_id: str | None = None, field_name: str | None = None, error_message: str | None = None, run_id: str = RUN_ID, usage_db_path: str = USAGE_DB_PATH) -> None:
     ci, co, ct = _cost(model, input_tokens, output_tokens)
     c = _conn(usage_db_path)
-    c.execute("INSERT INTO llm_usage VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (datetime.utcnow().isoformat(), run_id, script_name, role, provider, model, int(input_tokens), int(output_tokens), int(input_tokens)+int(output_tokens), ci, co, ct, status, source_module, paper_id, field_name, error_message))
+    c.execute("INSERT INTO llm_usage VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (datetime.now(UTC).isoformat(), run_id, script_name, role, provider, model, int(input_tokens), int(output_tokens), int(input_tokens)+int(output_tokens), ci, co, ct, status, source_module, paper_id, field_name, error_message))
     c.commit(); c.close()
 
 

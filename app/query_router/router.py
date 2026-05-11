@@ -1,9 +1,11 @@
-"""Rule-first query router with optional LLM refinement."""
+"""Rule-first query router with optional LLM refinement and optional agents route."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from app.agents.config import parse_agents_config
+from app.config import load_config
 from app.extraction.llm_provider import build_provider, render_json_prompt
 from app.models import RouterPlan
 
@@ -12,7 +14,7 @@ class QueryRouter:
     def __init__(self, use_llm: bool = True):
         self.use_llm = use_llm
         self.provider = build_provider("router")
-        self.template = Path("app/prompts/query_routing.txt").read_text()
+        self.template = Path("app/prompts/query_routing.txt").read_text(encoding="utf-8")
 
     def route(self, query: str) -> RouterPlan:
         rule_intent = "comparison" if "compare" in query.lower() else "qa"
@@ -30,3 +32,14 @@ class QueryRouter:
         llm_out = self.provider.complete_json(render_json_prompt(self.template, {"query": query, "draft": base}))
         merged = {**base, **llm_out}
         return RouterPlan.model_validate(merged)
+
+    def select_execution_route(self, query: str) -> str:
+        cfg = load_config()
+        acfg = parse_agents_config(cfg, {"agents": cfg.agents or {}})
+        if not acfg.enabled:
+            return "pipeline"
+        q = query.lower()
+        triggers = ["research directions", "direction", "compare", "research gap", "literature review", "which labs", "report", "across papers"]
+        if any(t in q for t in triggers):
+            return "agents"
+        return "pipeline"
