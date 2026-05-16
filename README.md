@@ -1,6 +1,6 @@
 # PaperWeb MVP: Research Memory Pipeline
 
-PaperWeb is a production-oriented research-memory system for discovering papers, normalizing and storing paper intelligence, and answering grounded questions from retrieved evidence.
+PaperWeb is a research paper intelligence workspace, not a generic RAG chatbot. It is centered on structured Paper Cards and task-specific workflows over validated evidence.
 
 It currently supports two ingestion paths:
 - **Legacy pipeline** (conference-style crawler → parse → extract → store).
@@ -48,7 +48,7 @@ PaperWeb has two compatible ingest entrypoints:
 1. **Multi-source ingestion foundation** (for latest-paper discovery and canonical metadata management).
 2. **Legacy ingest pipeline** (for parsing/extraction/vector/graph/result memory generation).
 
-The query side uses router → retrieval → fusion → grounded generation.
+The user-facing query side now uses task detection → task-specific retrieval policies → evidence validation/filtering → task-specific answering.
 
 ---
 

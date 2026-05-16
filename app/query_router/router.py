@@ -29,9 +29,12 @@ class QueryRouter:
         }
         if not self.use_llm:
             return RouterPlan.model_validate(base)
-        llm_out = self.provider.complete_json(render_json_prompt(self.template, {"query": query, "draft": base}))
-        merged = {**base, **llm_out}
-        return RouterPlan.model_validate(merged)
+        try:
+            llm_out = self.provider.complete_json(render_json_prompt(self.template, {"query": query, "draft": base}))
+            merged = {**base, **llm_out}
+            return RouterPlan.model_validate(merged)
+        except Exception:
+            return RouterPlan.model_validate(base)
 
     def select_execution_route(self, query: str) -> str:
         cfg = load_config()
