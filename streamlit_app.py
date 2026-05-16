@@ -179,10 +179,11 @@ runtime = get_current_runtime()
 st.subheader("Usage / cost")
 st.json(get_usage_summary(runtime.usage_db_path))
 
-st.subheader("Query knowledge base")
+st.subheader("Paper Intelligence Workspace")
 query_db = st.selectbox("Query DB", options=list_dbs() or [runtime.db_path], index=0)
-q = st.text_input("Ask a question")
-if st.button("Run query") and q:
+task_mode = st.selectbox("Task mode", ["Search papers", "Define concept/acronym", "Summarize paper", "Compare papers", "Extract results", "Map research directions", "Ask selected papers", "Auto-detect from question"])
+q = st.text_input("Question / task input")
+if st.button("Run task") and q:
     query_runtime = build_runtime_paths(query_db, cfg.storage.usage_db_path)
     pre_usage = usage_counts_by_role(query_runtime.usage_db_path)
     out = run_query(q, db_path=query_runtime.db_path, usage_db_path=query_runtime.usage_db_path)
@@ -197,9 +198,11 @@ if st.button("Run query") and q:
     st.write(out["answer"]["answer"])
     st.markdown("### Citations")
     st.json(out["answer"].get("citations", []))
+    st.markdown("### Task trace")
+    st.json(out.get("task_trace", {}))
     st.markdown("### Router plan")
     st.json(out["plan"])
-    st.markdown("### Evidence")
+    st.markdown("### Evidence used")
     st.dataframe(pd.DataFrame(out.get("evidence_items", [])))
 
 if st.button("Show graph structure"):
